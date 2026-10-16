@@ -1,4 +1,4 @@
-// Synced Lyrics engine using LRCLIB API and LRC parser
+import { Bridge } from "./bridge";
 
 export interface ParsedLyric {
   time: number; // in seconds
@@ -56,7 +56,17 @@ export async function fetchLyrics(title: string, artist: string): Promise<Parsed
 
   const promise = (async () => {
     try {
-      // Clean title: remove parentheticals like (Official Audio), feat., etc.
+      // 1. Try Rust backend (searches local .lrc files in Music and queries LRCLIB via reqwest)
+      const backendLrc = await Bridge.getLyrics(title, artist);
+      if (backendLrc) {
+        const parsed = parseLRC(backendLrc);
+        if (parsed.length > 0) {
+          lyricsCache.set(key, parsed);
+          return parsed;
+        }
+      }
+
+      // 2. Direct frontend fetch fallback (allowed now by CSP)
       const cleanTitle = title
         .replace(/\(official.*?\)/gi, "")
         .replace(/\[official.*?\]/gi, "")
@@ -65,27 +75,53 @@ export async function fetchLyrics(title: string, artist: string): Promise<Parsed
         .trim();
 
       const cleanArtist = artist.split(/[,&]/)[0].trim();
-      const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+      const getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
 
-      const res = await fetch(url);
-      if (!res.ok) {
-        lyricsCache.set(key, null);
-        return null;
+      const res = await fetch(getUrl, {
+        headers: {
+          "User-Agent": "Coucou/0.6.0 (https://github.com/NaufalPratomo/coucou)",
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.syncedLyrics) {
+          const parsed = parseLRC(data.syncedLyrics);
+          lyricsCache.set(key, parsed);
+          return parsed;
+        } else if (data.plainLyrics) {
+          const plain = data.plainLyrics
+            .split("\n")
+            .map((l: string) => l.trim())
+            .filter(Boolean)
+            .map((text: string, i: number) => ({ time: i * 5, text }));
+          lyricsCache.set(key, plain);
+          return plain;
+        }
       }
-      const data = await res.json();
-      if (data.syncedLyrics) {
-        const parsed = parseLRC(data.syncedLyrics);
-        lyricsCache.set(key, parsed);
-        return parsed;
-      } else if (data.plainLyrics) {
-        const plain = data.plainLyrics
-          .split("\n")
-          .map((l: string) => l.trim())
-          .filter(Boolean)
-          .map((text: string, i: number) => ({ time: i * 5, text }));
-        lyricsCache.set(key, plain);
-        return plain;
+
+      // 3. Search endpoint fallback (for YouTube video titles, covers, etc.)
+      const searchQuery = `${cleanTitle} ${cleanArtist}`.trim();
+      const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(searchQuery)}`;
+      const searchRes = await fetch(searchUrl, {
+        headers: {
+          "User-Agent": "Coucou/0.6.0 (https://github.com/NaufalPratomo/coucou)",
+        },
+      });
+
+      if (searchRes.ok) {
+        const items = await searchRes.json();
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            if (item.syncedLyrics) {
+              const parsed = parseLRC(item.syncedLyrics);
+              lyricsCache.set(key, parsed);
+              return parsed;
+            }
+          }
+        }
       }
+
       lyricsCache.set(key, null);
       return null;
     } catch {

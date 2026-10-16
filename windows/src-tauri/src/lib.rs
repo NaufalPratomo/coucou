@@ -17,6 +17,7 @@ mod integrations;
 mod island;
 mod local_chat;
 mod log;
+mod lyrics;
 mod net;
 mod notes;
 mod notifications;
@@ -761,6 +762,7 @@ pub fn run() {
             approval_ack,
             approval_decline,
             log_line,
+            lyrics::get_lyrics,
             chat_send,
             chat_models,
             local_connect,

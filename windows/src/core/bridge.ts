@@ -409,6 +409,8 @@ export const Bridge = {
   spotifyOpen: () => call<boolean>("spotify_open"),
   /** Whether there is a Spotify to launch (Settings). */
   spotifyInstalled: () => call<boolean>("spotify_installed"),
+  /** Fetch synced/plain lyrics from local .lrc files or online LRCLIB. */
+  getLyrics: (title: string, artist: string) => call<string | null>("get_lyrics", { title, artist }),
 };
 
 export type SpotifyAction = "playPause" | "next" | "previous" | "seek" | "shuffle" | "repeat" | "volume";
