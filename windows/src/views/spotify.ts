@@ -17,7 +17,7 @@ import {
 } from "../core/spotify";
 import { createMiniBot } from "../mochi/minibots";
 import { pillDefinition } from "../core/pills";
-import { N_, t } from "../i18n/i18n";
+import { t } from "../i18n/i18n";
 import { fetchLyrics, getActiveLyricIndex, type ParsedLyric } from "../core/lyrics";
 
 
@@ -319,7 +319,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
   idleAction.addEventListener("click", () => void Bridge.spotifyOpen());
   const idleSub = h("span");
   const idleEl = h("div", { class: "int-card" },
-    h("div", { class: "int-head" }, dot(green, 7), h("b", { text: t("Music") }), idleSub),
+    h("div", { class: "int-head" }, dot(green, 7), h("b", { text: "Music" }), idleSub),
     h("div", { class: "int-status" }, idleDot, idleText),
     h("div", { class: "int-actions" }, idleAction),
   );
@@ -338,12 +338,17 @@ export function buildSpotifyCard(): SpotifyCardHost {
 
   let needInitialScroll = true;
 
-  function scrollToActiveLyric(smooth = true) {
-    if (lastActiveIndex < 0 || !currentLyricElements[lastActiveIndex]) return;
+  function scrollToActiveLyric(smooth = true): boolean {
+    if (lastActiveIndex < 0 || !currentLyricElements[lastActiveIndex]) return false;
     const activeEl = currentLyricElements[lastActiveIndex];
-    if (lyricsList.clientHeight === 0) return;
+    if (lyricsList.clientHeight === 0) return false;
     const targetTop = activeEl.offsetTop - lyricsList.clientHeight / 2 + activeEl.clientHeight / 2;
-    lyricsList.scrollTo({ top: Math.max(0, targetTop), behavior: smooth ? "smooth" : "auto" });
+    if (typeof lyricsList.scrollTo === "function") {
+      lyricsList.scrollTo({ top: Math.max(0, targetTop), behavior: smooth ? "smooth" : "auto" });
+    } else {
+      lyricsList.scrollTop = Math.max(0, targetTop);
+    }
+    return true;
   }
 
   function paintProgress() {
@@ -373,8 +378,10 @@ export function buildSpotifyCard(): SpotifyCardHost {
         }
         if (changed || needInitialScroll) {
           const wasInitial = needInitialScroll;
-          needInitialScroll = false;
-          scrollToActiveLyric(!wasInitial && changed);
+          const didScroll = scrollToActiveLyric(!wasInitial && changed);
+          if (didScroll) {
+            needInitialScroll = false;
+          }
         }
       }
     }
@@ -410,7 +417,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
     } else if (isAd(track)) {
       title.textContent = t("Advertisement");
     }
-    art.title = track.album ? t("{0} — open Music", { 0: track.album }) : t("Open Music");
+    art.title = track.album ? `${track.album} — ${t("Open Music")}` : t("Open Music");
     const cover = currentArtwork(s);
     if (cover) {
       if (artImg.getAttribute("src") !== cover) artImg.setAttribute("src", cover);
@@ -427,7 +434,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
       lastActiveIndex = -1;
       clear(lyricsList);
       currentLyricElements = [];
-      const statusEl = h("div", { class: "lyrics-status", text: t("Finding lyrics...") });
+      const statusEl = h("div", { class: "lyrics-status", text: "Finding lyrics..." });
       lyricsList.append(statusEl);
 
       void fetchLyrics(track.title, track.artist).then((lyrics) => {
@@ -436,7 +443,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
         clear(lyricsList);
         currentLyricElements = [];
         if (!lyrics || lyrics.length === 0) {
-          lyricsList.append(h("div", { class: "lyrics-status", text: t("No synced lyrics") }));
+          lyricsList.append(h("div", { class: "lyrics-status", text: "No synced lyrics" }));
           return;
         }
         for (const line of lyrics) {
@@ -444,6 +451,8 @@ export function buildSpotifyCard(): SpotifyCardHost {
             "div",
             {
               class: "lyric-line",
+              text: line.text,
+              title: line.text,
               onclick: (e) => {
                 e.stopPropagation();
                 seek(line.time);
@@ -489,9 +498,9 @@ export function buildSpotifyCard(): SpotifyCardHost {
 
   function syncIdle() {
     idleDot.style.background = "#22C55E";
-    idleText.textContent = t("No music playing");
+    idleText.textContent = "No music playing";
     idleAction.textContent = t("Open Music");
-    idleSub.textContent = t(pillDefinition(SPOTIFY_ID)?.subtitle ?? N_("Media Player"));
+    idleSub.textContent = pillDefinition(SPOTIFY_ID)?.subtitle ?? "Media Player";
   }
 
   return {

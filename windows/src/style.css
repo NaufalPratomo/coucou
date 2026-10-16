@@ -2585,14 +2585,13 @@ input[type="range"]::-webkit-slider-thumb {
   position: relative;
   height: 100%;
   max-height: 104px;
-  overflow-y: scroll;
+  overflow-y: auto;
   scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 38px 6px 38px 0;
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  padding: 24px 8px 24px 4px;
+  box-sizing: border-box;
 }
 
 .lyrics-container::-webkit-scrollbar {
@@ -2600,33 +2599,37 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .lyric-line {
-  font: 500 12px/1.35 var(--font);
+  flex: 0 0 auto;
+  min-height: 22px;
+  line-height: 22px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
   color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  padding: 3px 8px;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  padding: 2px 10px;
   border-radius: 6px;
-  border-left: 2.5px solid transparent;
+  border-left: 3px solid transparent;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .lyric-line:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.08);
 }
 
 .lyric-line.active {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
-  color: #ffffff;
-  background: rgba(34, 197, 94, 0.16);
-  border-left: 2.5px solid #22c55e;
-  box-shadow: 0 1px 6px rgba(34, 197, 94, 0.2);
-  transform: scale(1.02);
-  transform-origin: left center;
+  color: #ffffff !important;
+  background: rgba(34, 197, 94, 0.2);
+  border-left: 3px solid #22c55e;
+  box-shadow: 0 1px 8px rgba(34, 197, 94, 0.25);
 }
 
 .lyrics-status {
@@ -2939,8 +2942,11 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   flex-direction: column;
   gap: 6px;
   padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-width: none;
+}
+
+.msg-card-list::-webkit-scrollbar {
+  display: none;
 }
 
 .msg-item {

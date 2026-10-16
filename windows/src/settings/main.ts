@@ -784,10 +784,10 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "calcom-api-key", label: N_("API key"), placeholder: "cal_…", secret: true }] },
   // Nothing to enter: Music is read from the OS media session (src-tauri/src/spotify.rs).
   { id: "integration_spotify", name: "Music", color: "#1DB954", fields: [],
-    hint: N_("Syncs with Spotify, YouTube, Chrome, Edge, and any Windows media player.") },
+    hint: "Syncs with Spotify, YouTube, Chrome, Edge, and any Windows media player." },
   // Nothing to enter: Messages are intercepted from Windows toast notifications.
   { id: "integration_messages", name: "Messages", color: "#38BDF8", fields: [],
-    hint: N_("Windows toast notifications & message interceptor in dynamic island.") },
+    hint: "Windows toast notifications & message interceptor in dynamic island." },
 ];
 
 const MAX_ACTIVE = MAX_DECLARED;

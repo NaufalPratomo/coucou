@@ -19,13 +19,13 @@ function getAppColor(appName: string): string {
 
 function formatRelativeTime(timestampMs: number): string {
   const diffSec = Math.floor((Date.now() - timestampMs) / 1000);
-  if (diffSec < 15) return "Baru saja";
-  if (diffSec < 60) return `${diffSec}d lalu`;
+  if (diffSec < 15) return "Just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m lalu`;
+  if (diffMin < 60) return `${diffMin}m ago`;
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}j lalu`;
-  return `${Math.floor(diffHour / 24)}h lalu`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  return `${Math.floor(diffHour / 24)}d ago`;
 }
 
 export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
@@ -54,7 +54,7 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
           State.notify();
         },
       },
-      "Hapus Semua",
+      "Clear all",
     );
 
     const head = h(
@@ -71,16 +71,14 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
     const body = h("div", { class: "msg-card-list" });
 
     if (notificationHistory.length === 0) {
+      body.style.overflow = "hidden";
       const emptyIcon = svg(ICONS.bubble, 28);
       emptyIcon.classList.add("msg-empty-icon");
-      const emptyText = h("div", { class: "msg-empty-text", text: "Belum ada notifikasi baru" });
-      const emptySub = h("div", {
-        class: "msg-empty-sub",
-        text: "Pesan dari Telegram, WhatsApp, Slack, Comet, dll. akan muncul di sini.",
-      });
-      const emptyWrap = h("div", { class: "msg-empty-wrap" }, emptyIcon, emptyText, emptySub);
+      const emptyText = h("div", { class: "msg-empty-text", text: "No notifications" });
+      const emptyWrap = h("div", { class: "msg-empty-wrap" }, emptyIcon, emptyText);
       body.append(emptyWrap);
     } else {
+      body.style.overflow = "";
       for (let i = 0; i < notificationHistory.length; i++) {
         const notif = notificationHistory[i];
         const appColor = getAppColor(notif.appName);
@@ -139,7 +137,7 @@ export function buildMessagesPill(onFocus: () => void): { el: HTMLElement; sync(
     const d = dot("#38BDF8", 7);
     const name = h("span", { class: "int-name", text: "Messages" });
     const count = notificationHistory.length;
-    const countText = count > 0 ? `${count} notif` : "Empty";
+    const countText = count > 0 ? (count === 1 ? "1 notification" : `${count} notifications`) : "No notifications";
     const sub = h("span", { class: "int-sub", text: countText });
     el.append(d, name, sub);
   }

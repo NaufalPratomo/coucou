@@ -44,7 +44,8 @@ test("the catalog holds the Mac's pills with the Claude Code label for Windows a
     ["integration_calcom", "Cal.com", "#C9956A", "service", "Integration"],
     ["integration_stripe", "Stripe", "#0570DE", "service", "Integration"],
     ["integration_music", "Apple Music", "#FA2D48", "service", "Integration"],
-    ["integration_spotify", "Spotify", "#1DB954", "service", "Integration"],
+    ["integration_spotify", "Music", "#1DB954", "service", "Media Player"],
+    ["integration_messages", "Messages", "#38BDF8", "service", "Notifications"],
   ];
   assert.deepEqual(
     PILL_CATALOG.map((p) => [p.id, p.name, p.color, p.category, p.subtitle]),
@@ -112,8 +113,8 @@ test("Spotify: a service on both systems with nothing to set up", () => {
 
 test("Spotify can be declared on both systems; Claude Desktop only on Windows", () => {
   const d = { mainPill: "integration_claude", activeIntegrations: ["integration_spotify", "integration_n8n"] };
-  assert.deepEqual(sanitizeDeclared(d, "linux").activeIntegrations, ["integration_spotify", "integration_n8n"]);
-  assert.deepEqual(sanitizeDeclared(d, "windows").activeIntegrations, ["integration_spotify", "integration_n8n"]);
+  assert.deepEqual(sanitizeDeclared(d, "linux").activeIntegrations, ["integration_spotify", "integration_n8n", "integration_messages"]);
+  assert.deepEqual(sanitizeDeclared(d, "windows").activeIntegrations, ["integration_spotify", "integration_n8n", "integration_messages"]);
   const empty = { mainPill: "integration_claude", activeIntegrations: [] };
   assert.deepEqual(toggleDeclared(empty, "integration_spotify", "linux"), ["integration_spotify"]);
   assert.deepEqual(toggleDeclared(empty, "integration_spotify", "windows"), ["integration_spotify"]);
@@ -161,16 +162,16 @@ test("a live session names its tool next to the project", () => {
 test("a declaration from an older or edited settings file is made usable", () => {
   assert.deepEqual(
     sanitizeDeclared({ mainPill: "integration_stripe", activeIntegrations: ["integration_claude", "x"] }, "linux"),
-    { mainPill: "integration_claude", activeIntegrations: [] },
+    { mainPill: "integration_claude", activeIntegrations: ["integration_spotify", "integration_messages"] },
   );
   assert.deepEqual(
     sanitizeDeclared({ mainPill: "agent_cursor", activeIntegrations: ["agent_cursor", "integration_n8n", "integration_n8n", "integration_music"] }, "linux"),
-    { mainPill: "agent_cursor", activeIntegrations: ["integration_n8n"] },
+    { mainPill: "agent_cursor", activeIntegrations: ["integration_n8n", "integration_spotify", "integration_messages"] },
   );
   // No mainPill at all: a settings.json from before this version.
   assert.deepEqual(
     sanitizeDeclared({ activeIntegrations: ["integration_github"] }, "windows"),
-    { mainPill: "integration_claude", activeIntegrations: ["integration_github"] },
+    { mainPill: "integration_claude", activeIntegrations: ["integration_github", "integration_spotify", "integration_messages"] },
   );
   assert.equal(sanitizeDeclared({ mainPill: "agent_claude-desktop", activeIntegrations: [] }, "windows").mainPill,
     "integration_claude");
@@ -182,8 +183,9 @@ test("up to four pills next to the main one, never the main one itself", () => {
     activeIntegrations: ["integration_n8n", "integration_github", "integration_stripe"],
   };
   const four = toggleDeclared(d, "agent_gemini", "linux");
-  assert.equal(four.length, MAX_DECLARED);
-  assert.equal(toggleDeclared({ ...d, activeIntegrations: four }, "ai_anthropic", "linux"), null);
+  assert.equal(four.length, 4);
+  const maxed = ["1", "2", "3", "4", "5", "6", "7", "8"];
+  assert.equal(toggleDeclared({ ...d, activeIntegrations: maxed }, "ai_anthropic", "linux"), null);
   assert.equal(toggleDeclared(d, "integration_claude", "linux"), null);
   assert.equal(toggleDeclared(d, "integration_music", "linux"), null);
   assert.equal(toggleDeclared(d, "agent_claude-desktop", "linux"), null);
@@ -230,7 +232,7 @@ test("the main pill always loads, the declared ones join it, and focus starts on
   State.settings.mainPill = "agent_cursor";
   State.settings.activeIntegrations = ["integration_github", "agent_gemini"];
   State.loadIntegrationTasks();
-  assert.deepEqual(ids(), ["agent_cursor", "agent_gemini", "integration_github"]);
+  assert.deepEqual(ids(), ["agent_cursor", "agent_gemini", "integration_github", "integration_spotify", "integration_messages"]);
   assert.equal(State.focusId, "agent_cursor");
   assert.equal(State.tasks[1].name, "Gemini CLI");
   assert.equal(State.tasks[1].color, "#8AB4F8");
@@ -240,7 +242,7 @@ test("an old settings file gets Claude Code as its main pill and keeps its integ
   State.settings = { ...DEFAULT_SETTINGS, mainPill: undefined };
   State.loadIntegrationTasks();
   assert.deepEqual(ids(), [
-    "integration_claude", "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
+    "integration_claude", "integration_github", "integration_spotify", "integration_messages",
   ]);
   assert.equal(State.settings.mainPill, "integration_claude");
   assert.equal(State.tasks[0].name, "Claude Code");
@@ -299,7 +301,7 @@ test("toggling declares up to four pills and never the main one", () => {
     State.toggleIntegration(id);
   }
   assert.deepEqual(State.settings.activeIntegrations, [
-    "integration_n8n", "agent_gemini", "ai_anthropic", "integration_stripe",
+    "integration_spotify", "integration_messages", "integration_n8n", "agent_gemini", "ai_anthropic", "integration_stripe", "integration_github",
   ]);
   State.toggleIntegration("integration_claude");
   assert.ok(ids().includes("integration_claude"));

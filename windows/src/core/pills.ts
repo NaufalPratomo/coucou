@@ -132,10 +132,10 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
     subtitle: N_("Integration"), source: "n8n", support: "no", connect: none },
   // Media session player through MPRIS on Linux and the system media controls on Windows
   { id: "integration_spotify", name: "Music", color: "#1DB954", category: "service",
-    subtitle: N_("Media Player"), source: "n8n", support: "yes", connect: none },
+    subtitle: "Media Player", source: "n8n", support: "yes", connect: none },
   // Windows Toast Notification Interceptor & Messages Center
   { id: "integration_messages", name: "Messages", color: "#38BDF8", category: "service",
-    subtitle: N_("Notifications"), source: "n8n", support: "yes", connect: none },
+    subtitle: "Notifications", source: "n8n", support: "yes", connect: none },
 ];
 
 export const MESSAGES_ID = "integration_messages";
