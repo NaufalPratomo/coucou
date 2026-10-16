@@ -19,6 +19,7 @@ mod local_chat;
 mod log;
 mod net;
 mod notes;
+mod notifications;
 mod openai_compat;
 mod phone_link;
 mod pipe;
@@ -873,6 +874,7 @@ pub fn run() {
             desktop::setup(&handle);
             flow::setup(&handle);
             notes::setup(&handle);
+            notifications::setup(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // Where Tauri takes the drop itself (Linux), its paths are the

@@ -14,6 +14,9 @@ import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { SPOTIFY_ID, Spotify, islandDances, spotifyPosition } from "../core/spotify";
 import { fetchLyrics, getCurrentLyric, type ParsedLyric } from "../core/lyrics";
+import {
+  activeNotifBanner, dismissNotificationBanner, type WindowsNotification,
+} from "../core/notifications";
 import { BotEngine, hexToRGB } from "../mochi/engine";
 import { Greeting } from "../mochi/greeting";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../mochi/minibots";
@@ -65,6 +68,7 @@ export class Island {
   private compactLyricsTrackKey = "";
   private compactLyricsData: ParsedLyric[] | null = null;
   private lastCompactLyricText = "";
+  private notifBanner!: HTMLElement;
 
   private header!: ViewHost;
   private views!: Map<IslandViewName, ViewHost>;
@@ -292,6 +296,7 @@ export class Island {
       this.contentEl,
     );
     this.compactLyrics = h("div", { id: "compact-lyrics", class: "compact-lyrics" });
+    this.notifBanner = h("div", { id: "notif-banner", class: "notif-banner" });
     this.islandEl = h(
       "div",
       { id: "island" },
@@ -299,6 +304,7 @@ export class Island {
       this.botGlow,
       this.botCanvas,
       this.compactLyrics,
+      this.notifBanner,
       this.miniGrid,
       this.countdown,
     );
@@ -656,6 +662,9 @@ export class Island {
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
       h = QUESTION_PICKER_H;
     }
+    if (State.mode === "compact" && activeNotifBanner != null) {
+      w = 380;
+    }
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     return { w, h, r };
   }
@@ -985,6 +994,49 @@ export class Island {
     }
   }
 
+  showNotification(notif: WindowsNotification) {
+    Sound.play("approve");
+    this.engine.triggerEmote("surprised");
+    if (State.mode === "hidden") {
+      this.fsm.reveal();
+    }
+    this.animateGeometry(false);
+    State.notify();
+    this.ensureRunning();
+  }
+
+  private updateNotifBanner() {
+    const notif = activeNotifBanner;
+    if (!notif) return;
+    clear(this.notifBanner);
+    const badge = h("span", { class: "notif-badge", text: notif.appName });
+    const title = h("span", { class: "notif-title", text: notif.title });
+    const sep = h("span", { class: "notif-sep", text: ":" });
+    const body = h("span", { class: "notif-body", text: notif.body });
+    const close = h(
+      "button",
+      {
+        class: "notif-close",
+        onclick: (e) => {
+          e.stopPropagation();
+          dismissNotificationBanner();
+          this.animateGeometry(true);
+        },
+      },
+      "×",
+    );
+
+    this.notifBanner.append(badge, title, sep, body, close);
+    this.notifBanner.onclick = () => {
+      dismissNotificationBanner();
+      this.animateGeometry(true);
+    };
+
+    if (!this.notifBanner.classList.contains("on")) {
+      this.notifBanner.classList.add("on");
+    }
+  }
+
   // ── Frame loop ──────────────────────────────────────────────────────────────
 
   ensureRunning() {
@@ -1038,11 +1090,22 @@ export class Island {
     if (UploadSeq.isActive) this.stepSequence();
     this.updateCountdown(nowMs);
 
-    if (State.mode === "compact" && State.spotifyPlaying) {
-      this.updateCompactLyrics();
-    } else if (this.compactLyrics.classList.contains("on")) {
-      this.compactLyrics.classList.remove("on");
-      this.lastCompactLyricText = "";
+    if (activeNotifBanner != null) {
+      this.updateNotifBanner();
+      if (this.compactLyrics.classList.contains("on")) {
+        this.compactLyrics.classList.remove("on");
+      }
+    } else {
+      if (this.notifBanner.classList.contains("on")) {
+        this.notifBanner.classList.remove("on");
+        this.animateGeometry(true);
+      }
+      if (State.mode === "compact" && State.spotifyPlaying) {
+        this.updateCompactLyrics();
+      } else if (this.compactLyrics.classList.contains("on")) {
+        this.compactLyrics.classList.remove("on");
+        this.lastCompactLyricText = "";
+      }
     }
 
     // Nothing is drawn while the island is hidden, so nothing may keep the loop
@@ -1058,7 +1121,8 @@ export class Island {
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
         greetingActive || this.engine.busy || UploadSeq.isActive || viewAnimating ||
-        (State.mode === "compact" && State.spotifyPlaying);
+        (State.mode === "compact" && State.spotifyPlaying) ||
+        activeNotifBanner != null;
 
     if (busy) {
       requestAnimationFrame(this.frame);
