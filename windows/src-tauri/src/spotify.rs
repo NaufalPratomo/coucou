@@ -1352,7 +1352,8 @@ mod linux {
 /// The media session ids Spotify registers: "Spotify.exe" (the installer from
 /// spotify.com) or "SpotifyAB.SpotifyMusic_…!Spotify" (the Microsoft Store).
 pub fn is_spotify_app(app_id: &str) -> bool {
-    app_id.to_ascii_lowercase().contains("spotify")
+    let id = app_id.to_ascii_lowercase();
+    id.contains("spotify") || id.contains("comet") || id.contains("chrome") || id.contains("msedge")
 }
 
 /// Windows durations and timeline positions: 100 ns ticks → seconds.
@@ -1757,7 +1758,12 @@ mod win {
                 return false;
             }
             let path = String::from_utf16_lossy(&buf[..len as usize]);
-            path.rsplit(['\\', '/']).next().is_some_and(|name| name.eq_ignore_ascii_case("spotify.exe"))
+            path.rsplit(['\\', '/']).next().is_some_and(|name| {
+                name.eq_ignore_ascii_case("spotify.exe")
+                    || name.eq_ignore_ascii_case("comet.exe")
+                    || name.eq_ignore_ascii_case("chrome.exe")
+                    || name.eq_ignore_ascii_case("msedge.exe")
+            })
         }
     }
 
@@ -2073,8 +2079,9 @@ mod tests {
     fn windows_media_sessions_of_spotify_are_recognised() {
         assert!(is_spotify_app("Spotify.exe"));
         assert!(is_spotify_app("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"));
+        assert!(is_spotify_app("Comet"));
+        assert!(is_spotify_app("chrome.exe"));
         assert!(!is_spotify_app("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"));
-        assert!(!is_spotify_app("chrome.exe"));
     }
 
     #[test]
