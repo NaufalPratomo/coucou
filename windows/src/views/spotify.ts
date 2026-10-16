@@ -319,7 +319,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
   idleAction.addEventListener("click", () => void Bridge.spotifyOpen());
   const idleSub = h("span");
   const idleEl = h("div", { class: "int-card" },
-    h("div", { class: "int-head" }, dot(green, 7), h("b", { text: "Spotify" }), idleSub),
+    h("div", { class: "int-head" }, dot(green, 7), h("b", { text: t("Music") }), idleSub),
     h("div", { class: "int-status" }, idleDot, idleText),
     h("div", { class: "int-actions" }, idleAction),
   );
@@ -410,7 +410,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
     } else if (isAd(track)) {
       title.textContent = t("Advertisement");
     }
-    art.title = track.album ? t("{0} — open Spotify", { 0: track.album }) : t("Open Spotify");
+    art.title = track.album ? t("{0} — open Music", { 0: track.album }) : t("Open Music");
     const cover = currentArtwork(s);
     if (cover) {
       if (artImg.getAttribute("src") !== cover) artImg.setAttribute("src", cover);
@@ -488,11 +488,10 @@ export function buildSpotifyCard(): SpotifyCardHost {
   }
 
   function syncIdle() {
-    const installed = Spotify.state.installed || Spotify.state.running;
-    idleDot.style.background = installed ? "#22C55E" : "#F4505E";
-    idleText.textContent = installed ? t("Not playing") : t("Spotify not installed");
-    idleAction.textContent = installed ? t("Open Spotify") : t("Get Spotify");
-    idleSub.textContent = t(pillDefinition(SPOTIFY_ID)?.subtitle ?? N_("Integration"));
+    idleDot.style.background = "#22C55E";
+    idleText.textContent = t("No music playing");
+    idleAction.textContent = t("Open Music");
+    idleSub.textContent = t(pillDefinition(SPOTIFY_ID)?.subtitle ?? N_("Media Player"));
   }
 
   return {

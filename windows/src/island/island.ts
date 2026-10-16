@@ -1007,6 +1007,12 @@ export class Island {
   }
 
   private updateNotifBanner() {
+    if (State.mode !== "compact") {
+      if (this.notifBanner.classList.contains("on")) {
+        this.notifBanner.classList.remove("on");
+      }
+      return;
+    }
     const notif = activeNotifBanner;
     if (!notif) return;
     clear(this.notifBanner);
@@ -1091,7 +1097,7 @@ export class Island {
     if (UploadSeq.isActive) this.stepSequence();
     this.updateCountdown(nowMs);
 
-    if (activeNotifBanner != null) {
+    if (activeNotifBanner != null && State.mode === "compact") {
       this.updateNotifBanner();
       if (this.compactLyrics.classList.contains("on")) {
         this.compactLyrics.classList.remove("on");

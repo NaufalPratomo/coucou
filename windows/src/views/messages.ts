@@ -11,6 +11,8 @@ function getAppColor(appName: string): string {
   if (lower.includes("slack")) return "#e01e5a";
   if (lower.includes("discord")) return "#5865f2";
   if (lower.includes("github")) return "#f4505e";
+  if (lower.includes("chrome") || lower.includes("google")) return "#22c55e";
+  if (lower.includes("edge")) return "#0078d4";
   if (lower.includes("comet") || lower.includes("antigravity")) return "#38bdf8";
   return "#60a5fa";
 }

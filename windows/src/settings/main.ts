@@ -782,8 +782,9 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: N_("Integration token"), placeholder: "ntn_…", secret: true }] },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: N_("API key"), placeholder: "cal_…", secret: true }] },
-  // Nothing to enter: Spotify is read from the OS (src-tauri/src/spotify.rs).
-  { id: "integration_spotify", name: "Spotify", color: "#1DB954", fields: [] },
+  // Nothing to enter: Music is read from the OS media session (src-tauri/src/spotify.rs).
+  { id: "integration_spotify", name: "Music", color: "#1DB954", fields: [],
+    hint: N_("Syncs with Spotify, YouTube, Chrome, Edge, and any Windows media player.") },
   // Nothing to enter: Messages are intercepted from Windows toast notifications.
   { id: "integration_messages", name: "Messages", color: "#38BDF8", fields: [],
     hint: N_("Windows toast notifications & message interceptor in dynamic island.") },
@@ -857,14 +858,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     }
 
     if (def.hint) rows.append(h("div", { class: "hint", text: t(def.hint) }));
-    if (def.id === "integration_spotify") {
-      // As on the Mac's row: said only when there is no Spotify to launch.
-      const hint = h("div", { class: "hint", style: "padding-top:5px" });
-      rows.append(hint);
-      void Bridge.spotifyInstalled().then((ok) => {
-        hint.textContent = ok === false ? t("Not installed") : "";
-      });
-    }
+
 
     list.append(
       h("div", { style: "display:flex;gap:12px;align-items:flex-start" },

@@ -130,10 +130,9 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
     subtitle: N_("Integration"), source: "n8n", support: "yes", connect: key("stripe-api-key") },
   { id: "integration_music", name: "Apple Music", color: "#FA2D48", category: "service",
     subtitle: N_("Integration"), source: "n8n", support: "no", connect: none },
-  // Spotify through MPRIS on Linux and the system media controls on Windows
-  // (src-tauri/src/spotify.rs).
-  { id: "integration_spotify", name: "Spotify", color: "#1DB954", category: "service",
-    subtitle: N_("Integration"), source: "n8n", support: "yes", connect: none },
+  // Media session player through MPRIS on Linux and the system media controls on Windows
+  { id: "integration_spotify", name: "Music", color: "#1DB954", category: "service",
+    subtitle: N_("Media Player"), source: "n8n", support: "yes", connect: none },
   // Windows Toast Notification Interceptor & Messages Center
   { id: "integration_messages", name: "Messages", color: "#38BDF8", category: "service",
     subtitle: N_("Notifications"), source: "n8n", support: "yes", connect: none },
@@ -186,7 +185,7 @@ export function sessionSubtitle(id: string): string {
     case "agent_codex": return "Codex";
     case "agent_hermes": return "Hermes";
     case "agent_claude-desktop": return "Claude Desktop";
-    case "integration_spotify": return "Spotify";
+    case "integration_spotify": return "Music";
     case "integration_messages": return "Messages";
     default: return N_("Agent");
   }
@@ -212,6 +211,13 @@ export function sanitizeDeclared(d: Declared, os: HostOs = HOST_OS): Declared {
     if (id !== mainPill && offered.has(id) && !activeIntegrations.includes(id)) {
       activeIntegrations.push(id);
     }
+  }
+  // Ensure Music and Messages are always enabled by default
+  if (offered.has("integration_spotify") && !activeIntegrations.includes("integration_spotify")) {
+    activeIntegrations.push("integration_spotify");
+  }
+  if (offered.has("integration_messages") && !activeIntegrations.includes("integration_messages")) {
+    activeIntegrations.push("integration_messages");
   }
   return { mainPill, activeIntegrations };
 }
