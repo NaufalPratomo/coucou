@@ -43,6 +43,16 @@ export function registerNotificationHandlers(onNewNotification?: (n: WindowsNoti
       notificationHistory.pop();
     }
 
+    // Update Messages task state if present
+    const msgTask = State.tasks.find((t) => t.id === "integration_messages");
+    if (msgTask) {
+      msgTask.state = "thinking";
+      msgTask.emote = "surprised";
+      msgTask.pillBadge = "approval";
+      msgTask.steps = [notif.appName, `${notif.title}: ${notif.body}`];
+      msgTask.stepIndex = 1;
+    }
+
     // Set active banner
     activeNotifBanner = notif;
     State.notify();

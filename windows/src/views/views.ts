@@ -23,6 +23,9 @@ import { buildRecap } from "./recap";
 import { buildWardrobe } from "./wardrobe";
 import { buildSpotifyCard, buildSpotifyPill, type SpotifyPillHost } from "./spotify";
 import { SPOTIFY_ID } from "../core/spotify";
+import { buildMessagesCard, buildMessagesPill } from "./messages";
+import { MESSAGES_ID } from "../core/pills";
+import { notificationHistory } from "../core/notifications";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
 import type { ViewCommand } from "../island/shortcuts";
@@ -138,7 +141,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
   function syncAgentTabs() {
     const focusId = State.focusTask?.id;
     const isOverview = State.view === "overview" || State.view === "empty";
-    const key = State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}`).join("|");
+    const notifCount = notificationHistory.length;
+    const key = State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}:${t.id === MESSAGES_ID ? notifCount : 0}`).join("|");
     if (key === lastAgentTabsKey) return;
     lastAgentTabsKey = key;
     clear(agentTabs);
@@ -160,6 +164,11 @@ export function buildHeader(actions: ViewActions): ViewHost {
         },
         mini,
       );
+
+      if (task.id === MESSAGES_ID && notifCount > 0) {
+        const badge = h("span", { class: "mochi-unread-badge", text: notifCount > 9 ? "9+" : `${notifCount}` });
+        tab.append(badge);
+      }
 
       if (isFocused) {
         tab.style.borderColor = `${task.color}55`;
@@ -243,6 +252,8 @@ function buildOverview(actions: ViewActions): ViewHost {
   // runs on, and a slider being dragged must not be rebuilt under the pointer.
   const spotifyCard = buildSpotifyCard();
   let spotifyPill: SpotifyPillHost | null = null;
+  const messagesCard = buildMessagesCard();
+  let messagesPill: { el: HTMLElement; sync(): void } | null = null;
 
   const el = h("div", { class: "view overview" },
     h("div", { class: "left" }, left),
@@ -252,7 +263,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   let pillIds = "";
   let detailOpen = false;
   let lastFocus: string | null = null;
-  let mode: "ticker" | "card" | "plan" | "diff" | "spotify" | null = null;
+  let mode: "ticker" | "card" | "plan" | "diff" | "spotify" | "messages" | null = null;
   let cardKey = "";
   /** The list row highlighted at the last sync, to scroll only when it moves. */
   let shownSelection: number | null = null;
@@ -409,6 +420,14 @@ function buildOverview(actions: ViewActions): ViewHost {
           cardKey = "";
         }
         spotifyCard.sync();
+      } else if (task && task.id === MESSAGES_ID) {
+        if (mode !== "messages") {
+          clear(leftBody);
+          leftBody.append(messagesCard.el);
+          mode = "messages";
+          cardKey = "";
+        }
+        messagesCard.sync();
       } else if (task) {
         const info = State.integrations[task.id];
         const key = [
@@ -424,7 +443,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
 
-      jump.style.display = detailOpen || mode === "plan" || mode === "diff" ? "none" : "";
+      jump.style.display = detailOpen || mode === "plan" || mode === "diff" || mode === "messages" ? "none" : "";
 
       // Ctrl+↓ Ctrl+↑ walk the open GitHub list (cardItemCount / cardSelection).
       const rows = mode === "card" ? listRows(leftBody) : [];
@@ -439,10 +458,14 @@ function buildOverview(actions: ViewActions): ViewHost {
         pillIds = pillKey;
         clear(pills);
         spotifyPill = null;
+        messagesPill = null;
         for (const t of others) {
           if (t.id === SPOTIFY_ID) {
             spotifyPill = buildSpotifyPill(t, () => actions.setFocus(t.id));
             pills.append(spotifyPill.el);
+          } else if (t.id === MESSAGES_ID) {
+            messagesPill = buildMessagesPill(() => actions.setFocus(t.id));
+            pills.append(messagesPill.el);
           } else {
             pills.append(buildPill(t, actions));
           }
@@ -450,6 +473,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         pruneMiniBots();
       }
       spotifyPill?.sync();
+      messagesPill?.sync();
     },
   };
 }

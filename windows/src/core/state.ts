@@ -171,7 +171,7 @@ export const DEFAULT_SETTINGS: Settings = {
   openOnHover: false,
   absenceInterval: 180,
   activeIntegrations: [
-    "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
+    "integration_spotify", "integration_messages", "integration_github",
   ],
   mainPill: DEFAULT_MAIN_PILL,
   screen: "primary",

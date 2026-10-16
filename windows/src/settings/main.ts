@@ -784,6 +784,9 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "calcom-api-key", label: N_("API key"), placeholder: "cal_…", secret: true }] },
   // Nothing to enter: Spotify is read from the OS (src-tauri/src/spotify.rs).
   { id: "integration_spotify", name: "Spotify", color: "#1DB954", fields: [] },
+  // Nothing to enter: Messages are intercepted from Windows toast notifications.
+  { id: "integration_messages", name: "Messages", color: "#38BDF8", fields: [],
+    hint: N_("Windows toast notifications & message interceptor in dynamic island.") },
 ];
 
 const MAX_ACTIVE = MAX_DECLARED;

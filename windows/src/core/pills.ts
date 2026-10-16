@@ -134,13 +134,18 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
   // (src-tauri/src/spotify.rs).
   { id: "integration_spotify", name: "Spotify", color: "#1DB954", category: "service",
     subtitle: N_("Integration"), source: "n8n", support: "yes", connect: none },
+  // Windows Toast Notification Interceptor & Messages Center
+  { id: "integration_messages", name: "Messages", color: "#38BDF8", category: "service",
+    subtitle: N_("Notifications"), source: "n8n", support: "yes", connect: none },
 ];
+
+export const MESSAGES_ID = "integration_messages";
 
 /** The always-on pill unless the user picks another workspace tool. */
 export const DEFAULT_MAIN_PILL = "integration_claude";
 
 /** How many declared pills may sit next to the main one. */
-export const MAX_DECLARED = 4;
+export const MAX_DECLARED = 8;
 
 /** The OS this page runs on. Only the Windows webview says "Windows". */
 export const HOST_OS: HostOs =
@@ -181,6 +186,8 @@ export function sessionSubtitle(id: string): string {
     case "agent_codex": return "Codex";
     case "agent_hermes": return "Hermes";
     case "agent_claude-desktop": return "Claude Desktop";
+    case "integration_spotify": return "Spotify";
+    case "integration_messages": return "Messages";
     default: return N_("Agent");
   }
 }
