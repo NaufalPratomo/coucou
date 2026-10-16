@@ -12,7 +12,8 @@ import {
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
-import { SPOTIFY_ID, islandDances } from "../core/spotify";
+import { SPOTIFY_ID, Spotify, islandDances, spotifyPosition } from "../core/spotify";
+import { fetchLyrics, getCurrentLyric, type ParsedLyric } from "../core/lyrics";
 import { BotEngine, hexToRGB } from "../mochi/engine";
 import { Greeting } from "../mochi/greeting";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../mochi/minibots";
@@ -21,7 +22,8 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { closePlanCard, openPlanColor, planCardOpen } from "../views/usage";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
-import { h } from "../views/dom";
+import { h, svg, clear } from "../views/dom";
+import { ICONS } from "../views/icons";
 import { IslandStateMachine } from "./fsm";
 import { refreshHookPills } from "./integrations";
 import { DesktopLink } from "./desktop";
@@ -59,6 +61,10 @@ export class Island {
   private miniGrid!: HTMLElement;
   private countdown!: HTMLElement;
   private wakeStrip!: HTMLElement;
+  private compactLyrics!: HTMLElement;
+  private compactLyricsTrackKey = "";
+  private compactLyricsData: ParsedLyric[] | null = null;
+  private lastCompactLyricText = "";
 
   private header!: ViewHost;
   private views!: Map<IslandViewName, ViewHost>;
@@ -285,12 +291,14 @@ export class Island {
       this.uploadCanvas.el,
       this.contentEl,
     );
+    this.compactLyrics = h("div", { id: "compact-lyrics", class: "compact-lyrics" });
     this.islandEl = h(
       "div",
       { id: "island" },
       this.clipEl,
       this.botGlow,
       this.botCanvas,
+      this.compactLyrics,
       this.miniGrid,
       this.countdown,
     );
@@ -939,6 +947,44 @@ export class Island {
     }, 3300);
   }
 
+  private updateCompactLyrics() {
+    const s = Spotify.state;
+    const track = s.track;
+    if (!track || !s.playing) {
+      if (this.compactLyrics.classList.contains("on")) {
+        this.compactLyrics.classList.remove("on");
+      }
+      return;
+    }
+
+    const key = `${track.title}:::${track.artist}`;
+    if (key !== this.compactLyricsTrackKey) {
+      this.compactLyricsTrackKey = key;
+      this.compactLyricsData = null;
+      void fetchLyrics(track.title, track.artist).then((lyrics) => {
+        if (key !== this.compactLyricsTrackKey) return;
+        this.compactLyricsData = lyrics;
+      });
+    }
+
+    const pos = spotifyPosition(s, Date.now());
+    const lineText = getCurrentLyric(this.compactLyricsData, pos);
+    const displayText = lineText || `${track.title}${track.artist ? ` · ${track.artist}` : ""}`;
+
+    if (displayText !== this.lastCompactLyricText) {
+      this.lastCompactLyricText = displayText;
+      clear(this.compactLyrics);
+      const icon = svg(ICONS.musicNote, 10);
+      icon.classList.add("lyric-icon");
+      const textEl = h("span", { class: "lyric-text", text: displayText });
+      this.compactLyrics.append(icon, textEl);
+    }
+
+    if (!this.compactLyrics.classList.contains("on")) {
+      this.compactLyrics.classList.add("on");
+    }
+  }
+
   // ── Frame loop ──────────────────────────────────────────────────────────────
 
   ensureRunning() {
@@ -992,6 +1038,13 @@ export class Island {
     if (UploadSeq.isActive) this.stepSequence();
     this.updateCountdown(nowMs);
 
+    if (State.mode === "compact" && State.spotifyPlaying) {
+      this.updateCompactLyrics();
+    } else if (this.compactLyrics.classList.contains("on")) {
+      this.compactLyrics.classList.remove("on");
+      this.lastCompactLyricText = "";
+    }
+
     // Nothing is drawn while the island is hidden, so nothing may keep the loop
     // alive either. This used to read `... || this.engine.busy || State.mode !==
     // "hidden"`, and engine.busy is permanently true for any state with a
@@ -1004,7 +1057,8 @@ export class Island {
       ? settling
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
-        greetingActive || this.engine.busy || UploadSeq.isActive || viewAnimating;
+        greetingActive || this.engine.busy || UploadSeq.isActive || viewAnimating ||
+        (State.mode === "compact" && State.spotifyPlaying);
 
     if (busy) {
       requestAnimationFrame(this.frame);

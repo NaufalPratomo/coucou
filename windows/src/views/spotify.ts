@@ -18,6 +18,7 @@ import {
 import { createMiniBot } from "../mochi/minibots";
 import { pillDefinition } from "../core/pills";
 import { N_, t } from "../i18n/i18n";
+import { fetchLyrics, getActiveLyricIndex, type ParsedLyric } from "../core/lyrics";
 
 
 function lighter(hex: string, amount: number): string {
@@ -305,7 +306,11 @@ export function buildSpotifyCard(): SpotifyCardHost {
     h("div", { class: "grow" }),
     volumeBox,
   );
-  const playingEl = h("div", { class: "np-card" }, head, progressRow, controls);
+  const playerCol = h("div", { class: "np-player-col" }, head, progressRow, controls);
+  const npDivider = h("div", { class: "np-divider" });
+  const lyricsList = h("div", { class: "lyrics-container" });
+  const lyricsCol = h("div", { class: "np-lyrics-col" }, lyricsList);
+  const playingEl = h("div", { class: "np-card" }, playerCol, npDivider, lyricsCol);
 
   // Idle: the same layout as the other idle cards.
   const idleDot = dot("#22C55E", 5);
@@ -326,6 +331,11 @@ export function buildSpotifyCard(): SpotifyCardHost {
   let volIconLevel = -1;
   let timer: number | null = null;
 
+  let currentLyricsKey = "";
+  let currentLyrics: ParsedLyric[] | null = null;
+  let currentLyricElements: HTMLElement[] = [];
+  let lastActiveIndex = -1;
+
   function paintProgress() {
     const s = Spotify.state;
     const d = s.track?.duration ?? 0;
@@ -334,9 +344,24 @@ export function buildSpotifyCard(): SpotifyCardHost {
     progress.set(f);
     elapsed.textContent = formatTime(f * d);
     remaining.textContent = d > 0 ? `-${formatTime(Math.max(0, d - f * d))}` : "";
+
+    if (currentLyrics && currentLyricElements.length > 0) {
+      const activeIdx = getActiveLyricIndex(currentLyrics, pos);
+      if (activeIdx !== lastActiveIndex) {
+        if (lastActiveIndex >= 0 && currentLyricElements[lastActiveIndex]) {
+          currentLyricElements[lastActiveIndex].classList.remove("active");
+        }
+        lastActiveIndex = activeIdx;
+        if (activeIdx >= 0 && currentLyricElements[activeIdx]) {
+          const activeEl = currentLyricElements[activeIdx];
+          activeEl.classList.add("active");
+          activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }
   }
 
-  /** The position runs on its own clock, twice a second, only while it plays on screen. */
+  /** The position runs on its own clock, 5 times a second, only while it plays on screen. */
   function syncTimer() {
     const run = Spotify.state.playing && showing === "playing" && el.isConnected &&
       State.mode === "expanded" && State.view === "overview";
@@ -348,7 +373,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
           return;
         }
         paintProgress();
-      }, 500);
+      }, 200);
     } else if (!run && timer != null) {
       window.clearInterval(timer);
       timer = null;
@@ -374,6 +399,44 @@ export function buildSpotifyCard(): SpotifyCardHost {
     } else {
       art.classList.remove("has-art");
       artImg.removeAttribute("src");
+    }
+
+    const lyricsKey = `${track.title}:::${track.artist}`;
+    if (lyricsKey !== currentLyricsKey) {
+      currentLyricsKey = lyricsKey;
+      currentLyrics = null;
+      lastActiveIndex = -1;
+      clear(lyricsList);
+      currentLyricElements = [];
+      const statusEl = h("div", { class: "lyrics-status", text: t("Finding lyrics...") });
+      lyricsList.append(statusEl);
+
+      void fetchLyrics(track.title, track.artist).then((lyrics) => {
+        if (lyricsKey !== currentLyricsKey) return;
+        currentLyrics = lyrics;
+        clear(lyricsList);
+        currentLyricElements = [];
+        if (!lyrics || lyrics.length === 0) {
+          lyricsList.append(h("div", { class: "lyrics-status", text: t("No synced lyrics") }));
+          return;
+        }
+        for (const line of lyrics) {
+          const lineEl = h(
+            "div",
+            {
+              class: "lyric-line",
+              onclick: (e) => {
+                e.stopPropagation();
+                seek(line.time);
+              },
+            },
+            line.text,
+          );
+          currentLyricElements.push(lineEl);
+          lyricsList.append(lineEl);
+        }
+        paintProgress();
+      });
     }
 
     progress.enabled = !isAd(track) && track.duration > 0;

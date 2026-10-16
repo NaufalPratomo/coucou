@@ -176,6 +176,44 @@ body {
   transition: opacity 0.25s ease-in-out;
 }
 
+/* Compact notch synced lyrics / music info */
+.compact-lyrics {
+  position: absolute;
+  left: 42px;
+  right: 50px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  height: 20px;
+  font: 500 11px var(--font);
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  z-index: 2;
+}
+
+.compact-lyrics.on {
+  opacity: 1;
+}
+
+.compact-lyrics .lyric-icon {
+  margin-right: 5px;
+  flex: 0 0 auto;
+  color: #22c55e;
+}
+
+.compact-lyrics .lyric-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* A mini Mochi: the slot is the body, the canvas is larger and overflows it so
    hands, badges and particles are not cut off. */
 .mini {
@@ -238,6 +276,54 @@ body {
 .tab.on {
   background: var(--tab-on);
   color: var(--ink);
+}
+
+.header-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 4px;
+  align-self: center;
+}
+
+.agent-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-tab {
+  height: 22px;
+  min-width: 24px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: default;
+  transition: all 0.2s cubic-bezier(0.3, 1.2, 0.4, 1);
+  color: var(--dim-2);
+}
+
+.agent-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.agent-tab.active {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0 8px 0 4px;
+  color: var(--ink);
+}
+
+.agent-tab-name {
+  font: 500 11px var(--font);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-actions {
@@ -394,17 +480,19 @@ body {
 
 .overview {
   display: flex;
-  gap: 10px;
+  gap: 0;
   height: 100%;
+  width: 100%;
 }
 
 .overview > .left {
-  flex: 0 0 322px;
-  width: 322px;
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
 }
 
 .overview > .right {
-  flex: 1 1 auto;
+  display: none;
 }
 
 .card-body {
@@ -2386,9 +2474,88 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .np-card {
-  padding: 10px 12px 0 108px;
+  padding: 8px 12px 8px 108px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.np-player-col {
+  flex: 0 0 250px;
+  width: 250px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.np-divider {
+  width: 1px;
+  height: 80%;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 12px;
+  flex: 0 0 1px;
+}
+
+.np-lyrics-col {
+  flex: 1 1 auto;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+}
+
+.lyrics-container {
+  height: 86px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 26px 4px 26px 0;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
+}
+
+.lyrics-container::-webkit-scrollbar {
+  display: none;
+}
+
+.lyric-line {
+  font: 500 11.5px var(--font);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.25s ease-out;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lyric-line:hover {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lyric-line.active {
+  font-weight: 700;
+  font-size: 12px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.6), 0 0 20px rgba(34, 197, 94, 0.3);
+  transform: scale(1.02);
+  transform-origin: left center;
+}
+
+.lyrics-status {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  text-align: center;
+  padding-top: 28px;
 }
 
 .np-head {

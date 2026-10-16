@@ -110,6 +110,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabHome = h("button", { class: "tab", title: tl("Overview"), onclick: () => go("overview") }, svg(ICONS.house, 13));
   const tabChat = h("button", { class: "tab", title: tl("Ask"), onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
   const tabDrop = h("button", { class: "tab", title: tl("Drop"), onclick: () => go("upload") }, svg(ICONS.plus, 13));
+  const divider = h("div", { class: "header-divider" });
+  const agentTabs = h("div", { class: "agent-tabs" });
 
   const gearBtn = h("button", { title: tl("Settings"), onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: tl("Mute"), onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
@@ -118,6 +120,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const codexPill = buildPlanPill(true);
   const planPills = h("div", { class: "plan-pills" }, claudePill.el, codexPill.el);
   let codexShown = false;
+  let lastAgentTabsKey = "";
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -127,10 +130,50 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, divider, agentTabs),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn),
   );
   const headerActions = el.lastElementChild as HTMLElement;
+
+  function syncAgentTabs() {
+    const focusId = State.focusTask?.id;
+    const isOverview = State.view === "overview" || State.view === "empty";
+    const key = State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}`).join("|");
+    if (key === lastAgentTabsKey) return;
+    lastAgentTabsKey = key;
+    clear(agentTabs);
+
+    for (const task of State.tasks) {
+      const isFocused = task.id === focusId && isOverview;
+      const mini = createMiniBot(task, 16, task.id === SPOTIFY_ID ? () => State.spotifyPlaying : undefined);
+      
+      const tab = h(
+        "button",
+        {
+          class: isFocused ? "agent-tab active" : "agent-tab",
+          title: task.name,
+          onclick: () => {
+            actions.blip();
+            actions.setFocus(task.id);
+            actions.setView("overview");
+          },
+        },
+        mini,
+      );
+
+      if (isFocused) {
+        tab.style.borderColor = `${task.color}55`;
+        tab.style.background = `${task.color}24`;
+        tab.style.boxShadow = `0 0 8px ${task.color}33`;
+        const nameEl = h("span", { class: "agent-tab-name", text: task.name });
+        nameEl.style.color = lighten(task.color, 0.3);
+        tab.append(nameEl);
+      }
+
+      agentTabs.append(tab);
+    }
+    pruneMiniBots();
+  }
 
   return {
     el,
@@ -145,6 +188,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       clear(soundBtn);
       soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 14));
       syncPlanPills();
+      syncAgentTabs();
       el.style.opacity = v === "confused" ? "0" : "1";
     },
   };
