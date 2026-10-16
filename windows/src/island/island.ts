@@ -994,7 +994,8 @@ export class Island {
     }
   }
 
-  showNotification(notif: WindowsNotification) {
+  showNotification(_notif: WindowsNotification) {
+    void _notif;
     Sound.play("approve");
     this.engine.triggerEmote("surprised");
     if (State.mode === "hidden") {
