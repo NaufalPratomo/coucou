@@ -2554,8 +2554,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .np-player-col {
-  flex: 0 0 250px;
-  width: 250px;
+  flex: 0 0 235px;
+  width: 235px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2564,9 +2564,9 @@ input[type="range"]::-webkit-slider-thumb {
 
 .np-divider {
   width: 1px;
-  height: 80%;
-  background: rgba(255, 255, 255, 0.08);
-  margin: 0 12px;
+  height: 85%;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 10px;
   flex: 0 0 1px;
 }
 
@@ -2576,20 +2576,23 @@ input[type="range"]::-webkit-slider-thumb {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: stretch;
   position: relative;
+  overflow: hidden;
 }
 
 .lyrics-container {
-  height: 86px;
-  overflow-y: auto;
+  position: relative;
+  height: 100%;
+  max-height: 104px;
+  overflow-y: scroll;
   scrollbar-width: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 26px 4px 26px 0;
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
+  gap: 4px;
+  padding: 38px 6px 38px 0;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
 }
 
 .lyrics-container::-webkit-scrollbar {
@@ -2597,36 +2600,44 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .lyric-line {
-  font: 500 11.5px var(--font);
-  color: rgba(255, 255, 255, 0.35);
+  font: 500 12px/1.35 var(--font);
+  color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: all 0.25s ease-out;
-  padding: 2px 6px;
-  border-radius: 4px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border-left: 2.5px solid transparent;
+  user-select: none;
 }
 
 .lyric-line:hover {
-  color: rgba(255, 255, 255, 0.75);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .lyric-line.active {
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 13px;
   color: #ffffff;
-  text-shadow: 0 0 10px rgba(34, 197, 94, 0.6), 0 0 20px rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.16);
+  border-left: 2.5px solid #22c55e;
+  box-shadow: 0 1px 6px rgba(34, 197, 94, 0.2);
   transform: scale(1.02);
   transform-origin: left center;
 }
 
 .lyrics-status {
-  font: 400 11px var(--font);
-  color: var(--dim-3);
+  font: 500 11.5px var(--font);
+  color: var(--dim-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   text-align: center;
-  padding-top: 28px;
+  padding: 0;
 }
 
 .np-head {

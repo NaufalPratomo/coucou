@@ -336,6 +336,16 @@ export function buildSpotifyCard(): SpotifyCardHost {
   let currentLyricElements: HTMLElement[] = [];
   let lastActiveIndex = -1;
 
+  let needInitialScroll = true;
+
+  function scrollToActiveLyric(smooth = true) {
+    if (lastActiveIndex < 0 || !currentLyricElements[lastActiveIndex]) return;
+    const activeEl = currentLyricElements[lastActiveIndex];
+    if (lyricsList.clientHeight === 0) return;
+    const targetTop = activeEl.offsetTop - lyricsList.clientHeight / 2 + activeEl.clientHeight / 2;
+    lyricsList.scrollTo({ top: Math.max(0, targetTop), behavior: smooth ? "smooth" : "auto" });
+  }
+
   function paintProgress() {
     const s = Spotify.state;
     const d = s.track?.duration ?? 0;
@@ -347,15 +357,24 @@ export function buildSpotifyCard(): SpotifyCardHost {
 
     if (currentLyrics && currentLyricElements.length > 0) {
       const activeIdx = getActiveLyricIndex(currentLyrics, pos);
-      if (activeIdx !== lastActiveIndex) {
+      const changed = activeIdx !== lastActiveIndex;
+      if (changed) {
         if (lastActiveIndex >= 0 && currentLyricElements[lastActiveIndex]) {
           currentLyricElements[lastActiveIndex].classList.remove("active");
         }
         lastActiveIndex = activeIdx;
         if (activeIdx >= 0 && currentLyricElements[activeIdx]) {
-          const activeEl = currentLyricElements[activeIdx];
-          activeEl.classList.add("active");
-          activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          currentLyricElements[activeIdx].classList.add("active");
+        }
+      }
+      if (activeIdx >= 0 && currentLyricElements[activeIdx]) {
+        if (!currentLyricElements[activeIdx].classList.contains("active")) {
+          currentLyricElements[activeIdx].classList.add("active");
+        }
+        if (changed || needInitialScroll) {
+          const wasInitial = needInitialScroll;
+          needInitialScroll = false;
+          scrollToActiveLyric(!wasInitial && changed);
         }
       }
     }
@@ -435,6 +454,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
           currentLyricElements.push(lineEl);
           lyricsList.append(lineEl);
         }
+        needInitialScroll = true;
         paintProgress();
       });
     }
@@ -485,6 +505,7 @@ export function buildSpotifyCard(): SpotifyCardHost {
         clear(el);
         el.append(want === "playing" ? playingEl : idleEl);
         shownTrack = null;
+        needInitialScroll = true;
       }
       if (track) syncPlaying(track);
       else syncIdle();
