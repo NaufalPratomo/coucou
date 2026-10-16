@@ -1353,7 +1353,11 @@ mod linux {
 /// spotify.com) or "SpotifyAB.SpotifyMusic_…!Spotify" (the Microsoft Store).
 pub fn is_spotify_app(app_id: &str) -> bool {
     let id = app_id.to_ascii_lowercase();
-    id.contains("spotify") || id.contains("comet") || id.contains("chrome") || id.contains("msedge")
+    id.contains("spotify")
+        || id.contains("comet")
+        || id.contains("chrome")
+        || id.contains("msedge")
+        || id.contains("musicgit")
 }
 
 /// Windows durations and timeline positions: 100 ns ticks → seconds.
@@ -1597,10 +1601,22 @@ mod win {
     }
 
     fn find_session(manager: &Manager) -> Option<Session> {
+        if let Ok(current) = manager.GetCurrentSession() {
+            if current.SourceAppUserModelId().is_ok_and(|id| is_spotify_app(&id.to_string_lossy())) {
+                return Some(current);
+            }
+        }
         let sessions = manager.GetSessions().ok()?;
-        (0..sessions.Size().ok()?)
+        let matching: Vec<Session> = (0..sessions.Size().ok()?)
             .filter_map(|i| sessions.GetAt(i).ok())
-            .find(|s| s.SourceAppUserModelId().is_ok_and(|id| is_spotify_app(&id.to_string_lossy())))
+            .filter(|s| s.SourceAppUserModelId().is_ok_and(|id| is_spotify_app(&id.to_string_lossy())))
+            .collect();
+        if let Some(playing) = matching.iter().find(|s| {
+            s.GetPlaybackInfo().ok().and_then(|p| p.PlaybackStatus().ok()) == Some(Status::Playing)
+        }) {
+            return Some(playing.clone());
+        }
+        matching.into_iter().next()
     }
 
     // ── Reading ───────────────────────────────────────────────────────────────
@@ -1763,6 +1779,7 @@ mod win {
                     || name.eq_ignore_ascii_case("comet.exe")
                     || name.eq_ignore_ascii_case("chrome.exe")
                     || name.eq_ignore_ascii_case("msedge.exe")
+                    || name.eq_ignore_ascii_case("musicgit.exe")
             })
         }
     }
@@ -2081,6 +2098,8 @@ mod tests {
         assert!(is_spotify_app("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"));
         assert!(is_spotify_app("Comet"));
         assert!(is_spotify_app("chrome.exe"));
+        assert!(is_spotify_app("MusicGit.exe"));
+        assert!(is_spotify_app("msedgewebview2.exe"));
         assert!(!is_spotify_app("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"));
     }
 
