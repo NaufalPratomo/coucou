@@ -319,7 +319,7 @@ pub fn clear_permission_request(id: &str) {
 pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
     let player = spotify::spotify_refresh(app.clone()).await;
     let media = player.and_then(|p| {
-        let track = p.track?;
+        let track = p.track.clone()?;
         let now = now_ms();
         let pos_secs = p.position_at_time(now);
         let pos_ms = (pos_secs * 1000.0).max(0.0) as u64;
