@@ -1,11 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Coucou">
+  <link rel="manifest" href="/manifest.json">
   <title>Coucou Companion</title>
+  <link rel="stylesheet" href="./src/companion/style.css">
 </head>
-<body style="background:#000;color:#fff;">
-  <div id="app">Loading Coucou Companion...</div>
+<body class="bg-black text-white antialiased select-none overflow-hidden touch-none">
+  <div id="app" class="flex flex-col h-screen w-screen px-4 pt-safe pb-safe">
+    <!-- Dynamic Island Container -->
+    <header id="dynamic-island" class="flex justify-center pt-3 pb-2">
+      <div class="island-pill flex items-center justify-between px-4 py-2 bg-neutral-900 border border-neutral-800 rounded-full w-full max-w-xs shadow-2xl">
+        <canvas id="mochi-canvas" width="36" height="36" class="rounded-full"></canvas>
+        <span id="island-status" class="text-xs font-medium tracking-wide text-neutral-300">Coucou Ready</span>
+        <div id="battery-indicator" class="flex items-center space-x-1 text-xs text-neutral-400">
+          <span id="battery-level">100%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="flex justify-around my-2 border-b border-neutral-900 pb-2">
+      <button data-tab="music" class="tab-btn active text-sm font-semibold text-white px-3 py-1">Music & Lyrics</button>
+      <button data-tab="agent" class="tab-btn text-sm font-semibold text-neutral-500 px-3 py-1">Antigravity</button>
+    </nav>
+
+    <!-- Main Viewport -->
+    <main id="tab-content" class="flex-1 relative overflow-hidden">
+      <!-- Music Tab -->
+      <section id="tab-music" class="tab-pane active flex flex-col h-full">
+        <div id="media-card" class="flex items-center space-x-4 p-3 bg-neutral-950 rounded-2xl border border-neutral-900">
+          <img id="album-art" src="" alt="Cover" class="w-16 h-16 rounded-xl bg-neutral-900 object-cover shadow-lg" />
+          <div class="flex-1 min-w-0">
+            <h2 id="track-title" class="text-base font-bold truncate text-white">No Track Playing</h2>
+            <p id="track-artist" class="text-xs text-neutral-400 truncate">Connect to Coucou</p>
+          </div>
+        </div>
+
+        <!-- Karaoke Scrolling Lyrics -->
+        <div id="lyrics-container" class="flex-1 overflow-y-auto my-4 text-center space-y-4 px-2 scroll-smooth">
+          <p class="text-neutral-600 text-sm italic">Waiting for music...</p>
+        </div>
+
+        <!-- Playback Controls -->
+        <div class="flex items-center justify-around py-4 bg-neutral-950/80 backdrop-blur rounded-2xl border border-neutral-900">
+          <button id="btn-prev" class="p-3 text-white active:scale-95 transition-transform">⏮️</button>
+          <button id="btn-play" class="p-4 bg-white text-black rounded-full text-lg font-bold shadow active:scale-95 transition-transform">▶</button>
+          <button id="btn-next" class="p-3 text-white active:scale-95 transition-transform">⏭️</button>
+        </div>
+      </section>
+
+      <!-- Antigravity Tab -->
+      <section id="tab-agent" class="tab-pane hidden flex flex-col h-full justify-between p-2">
+        <div id="agent-status-card" class="p-4 bg-neutral-950 rounded-2xl border border-neutral-900">
+          <span class="text-xs uppercase font-semibold text-neutral-500">Agent Status</span>
+          <h3 id="agent-state-label" class="text-lg font-bold text-emerald-400 mt-1">Idle</h3>
+          <p id="agent-goal" class="text-sm text-neutral-300 mt-2">No active tasks</p>
+        </div>
+
+        <!-- Approval Prompt Card -->
+        <div id="approval-card" class="hidden p-5 bg-neutral-900 rounded-3xl border border-neutral-700 shadow-2xl space-y-4">
+          <span class="text-xs font-bold uppercase text-amber-400 tracking-wider">Action Approval Required</span>
+          <p id="approval-prompt-text" class="text-sm font-medium text-white"></p>
+          <div class="flex space-x-3 pt-2">
+            <button id="btn-deny" class="flex-1 py-3 bg-red-600 active:bg-red-700 text-white font-bold rounded-xl active:scale-95 transition-transform">Deny</button>
+            <button id="btn-allow" class="flex-1 py-3 bg-emerald-500 active:bg-emerald-600 text-black font-bold rounded-xl active:scale-95 transition-transform">Allow</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./src/companion/main.ts"></script>
 </body>
 </html>
