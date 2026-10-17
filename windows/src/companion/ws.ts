@@ -12,6 +12,7 @@ export interface MediaState {
   albumArt?: string;
   durationMs: number;
   positionMs: number;
+  volume?: number;
   lyrics: LyricLine[];
 }
 

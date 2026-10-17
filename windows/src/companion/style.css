@@ -334,3 +334,71 @@ button {
   flex-shrink: 0;
 }
 
+/* ==========================================================================
+   Range Sliders for Track Scrubber & Volume
+   ========================================================================== */
+.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: 9999px;
+  background: #262626;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.custom-slider:focus {
+  outline: none;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.custom-slider:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  background: #34d399;
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================================================
+   Chat Input Bar Safe Area Padding & Bubbles
+   ========================================================================== */
+.chat-input-bar {
+  padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px);
+}
+
+.chat-bubble {
+  animation: fadeIn 0.18s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+

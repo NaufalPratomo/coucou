@@ -98,6 +98,8 @@ export function setupTabs(): void {
 export function initCompanionClient(): CompanionClient {
   const islandStatus = document.getElementById("island-status");
   const batteryLevel = document.getElementById("battery-level");
+  const batteryFill = document.getElementById("battery-fill");
+  const batteryBolt = document.getElementById("battery-bolt");
   const canvas = document.getElementById("mochi-canvas") as HTMLCanvasElement | null;
 
   if (mochi) {
@@ -110,14 +112,37 @@ export function initCompanionClient(): CompanionClient {
 
   const companion = new CompanionClient(
     (state: StateSnapshot) => {
-      if (batteryLevel && state.system) {
-        const charging = state.system.isCharging ? " ⚡" : "";
-        batteryLevel.textContent = `${state.system.batteryPercent}%${charging}`;
-        if (state.system.batteryPercent <= 20 && !state.system.isCharging) {
-          batteryLevel.classList.add("text-rose-400");
-          batteryLevel.classList.remove("text-neutral-400");
-        } else {
-          batteryLevel.classList.remove("text-rose-400");
+      if (state.system) {
+        const pct = Math.max(0, Math.min(100, state.system.batteryPercent));
+        if (batteryLevel) {
+          batteryLevel.textContent = `${pct}%`;
+        }
+        if (batteryFill) {
+          const fillWidth = Math.max(1.5, (pct / 100) * 15);
+          batteryFill.setAttribute("width", fillWidth.toFixed(1));
+          if (state.system.isCharging) {
+            batteryFill.setAttribute("class", "text-emerald-400 transition-all duration-300");
+          } else if (pct <= 20) {
+            batteryFill.setAttribute("class", "text-rose-500 transition-all duration-300");
+          } else {
+            batteryFill.setAttribute("class", "text-neutral-300 transition-all duration-300");
+          }
+        }
+        if (batteryBolt) {
+          if (state.system.isCharging) {
+            batteryBolt.classList.remove("hidden");
+          } else {
+            batteryBolt.classList.add("hidden");
+          }
+        }
+        if (batteryLevel) {
+          if (pct <= 20 && !state.system.isCharging) {
+            batteryLevel.classList.add("text-rose-400");
+            batteryLevel.classList.remove("text-neutral-300");
+          } else {
+            batteryLevel.classList.remove("text-rose-400");
+            batteryLevel.classList.add("text-neutral-300");
+          }
         }
       }
 

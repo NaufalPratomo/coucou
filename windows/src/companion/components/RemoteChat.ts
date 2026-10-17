@@ -10,8 +10,17 @@ export function setupRemoteChat(client: CompanionClient) {
 
   let mode: "ai" | "clip" = "ai";
 
+  const triggerHaptic = (ms: number) => {
+    try {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate(ms);
+      }
+    } catch (_) {}
+  };
+
   const updateMode = (newMode: "ai" | "clip") => {
     mode = newMode;
+    triggerHaptic(10);
     if (mode === "ai") {
       btnModeAi?.classList.add("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
       btnModeAi?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
@@ -43,40 +52,56 @@ export function setupRemoteChat(client: CompanionClient) {
     if (!messagesContainer) return;
     const bubble = document.createElement("div");
     bubble.className = isUser
-      ? "chat-bubble flex items-start justify-end space-x-2"
-      : "chat-bubble flex items-start space-x-2.5";
+      ? "chat-bubble flex items-start justify-end space-x-2 my-1"
+      : "chat-bubble flex items-start space-x-3 my-1";
 
     if (isUser) {
       bubble.innerHTML = `
-        <div class="bg-emerald-500 text-black font-semibold rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-xs shadow-md leading-relaxed max-w-[85%] break-words">
+        <div class="bg-emerald-500 text-black font-semibold rounded-2xl rounded-tr-sm px-4 py-3 text-sm shadow-md leading-relaxed max-w-[85%] break-words">
           ${escapeHtml(text)}
         </div>
       `;
     } else {
       bubble.innerHTML = `
-        <div class="w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0 shadow">
-          <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0 shadow">
+          <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2v2"/><rect x="4" y="4" width="16" height="14" rx="3"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M9 15h6"/>
           </svg>
         </div>
-        <div class="bg-neutral-950 border border-neutral-800 rounded-2xl rounded-tl-sm p-3 text-xs text-neutral-300 shadow leading-relaxed max-w-[85%] break-words whitespace-pre-wrap">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl rounded-tl-sm p-3.5 text-sm text-neutral-200 shadow-md leading-relaxed max-w-[85%] break-words whitespace-pre-wrap">
           ${escapeHtml(text)}
         </div>
       `;
     }
 
     messagesContainer.appendChild(bubble);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    try {
+      messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: "smooth" });
+    } catch {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
   };
 
-  form?.addEventListener("submit", (e) => {
-    e.preventDefault();
+  const submitCurrentMessage = () => {
     const text = input?.value?.trim();
     if (!text) return;
 
     if (input) input.value = "";
+    triggerHaptic(15);
     client.sendChatMessage(text, mode);
     showToast(mode === "clip" ? "Copied to PC!" : "Sent to AI!");
+  };
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submitCurrentMessage();
+  });
+
+  input?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submitCurrentMessage();
+    }
   });
 
   return {

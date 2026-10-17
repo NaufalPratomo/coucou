@@ -15,28 +15,40 @@
 <body class="bg-black text-white antialiased select-none overflow-hidden touch-none">
   <div id="app" class="flex flex-col h-screen w-screen px-4 pt-safe pb-safe">
     <!-- Dynamic Island Container -->
-    <header id="dynamic-island" class="flex justify-center pt-3 pb-2">
-      <div class="island-pill flex items-center justify-between px-4 py-2 bg-neutral-900 border border-neutral-800 rounded-full w-full max-w-xs shadow-2xl">
-        <canvas id="mochi-canvas" width="36" height="36" class="rounded-full"></canvas>
-        <span id="island-status" class="text-xs font-medium tracking-wide text-neutral-300">Coucou Ready</span>
-        <div id="battery-indicator" class="flex items-center space-x-1 text-xs text-neutral-400">
-          <span id="battery-level">100%</span>
+    <header id="dynamic-island" class="flex justify-center pt-2 pb-2 shrink-0">
+      <div class="island-pill flex items-center justify-between px-4 py-2 bg-neutral-900/90 border border-neutral-800 rounded-full w-full max-w-sm shadow-2xl backdrop-blur">
+        <canvas id="mochi-canvas" width="36" height="36" class="rounded-full shrink-0"></canvas>
+        <span id="island-status" class="text-xs font-semibold tracking-wide text-neutral-300 truncate mx-2">Coucou Ready</span>
+        <!-- Vector SVG Battery Indicator (Strictly Zero Unicode Emojis) -->
+        <div id="battery-indicator" class="flex items-center space-x-1.5 text-xs text-neutral-400 shrink-0">
+          <span id="battery-level" class="font-mono text-xs tabular-nums font-semibold text-neutral-300">100%</span>
+          <div class="relative flex items-center">
+            <svg id="battery-icon" class="w-5 h-2.5 text-neutral-400" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="1" width="19" height="10" rx="2.5" ry="2.5" />
+              <path d="M22 4v4" />
+              <rect id="battery-fill" x="3" y="3" width="15" height="6" rx="1.5" fill="currentColor" class="text-emerald-400 transition-all duration-300" />
+            </svg>
+            <svg id="battery-bolt" class="hidden absolute -left-1.5 -top-1 w-3.5 h-3.5 text-amber-400 drop-shadow" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
         </div>
       </div>
     </header>
 
     <!-- Tab Navigation -->
-    <nav class="flex justify-around my-2 border-b border-neutral-900 pb-2">
-      <button data-tab="music" class="tab-btn active text-sm font-semibold text-white px-3 py-1">Music</button>
-      <button data-tab="agent" class="tab-btn text-sm font-semibold text-neutral-500 px-3 py-1">Antigravity</button>
-      <button data-tab="chat" class="tab-btn text-sm font-semibold text-neutral-500 px-3 py-1">Remote Chat</button>
+    <nav id="tab-nav" class="flex justify-around my-2 border-b border-neutral-900 pb-2 shrink-0">
+      <button data-tab="music" class="tab-btn active text-sm font-semibold text-white px-4 py-1.5">Music</button>
+      <button data-tab="agent" class="tab-btn text-sm font-semibold text-neutral-500 px-4 py-1.5">Antigravity</button>
+      <button data-tab="chat" class="tab-btn text-sm font-semibold text-neutral-500 px-4 py-1.5">Remote Chat</button>
     </nav>
 
     <!-- Main Viewport -->
     <main id="tab-content" class="flex-1 relative overflow-hidden">
       <!-- Music Tab -->
-      <section id="tab-music" class="tab-pane active flex flex-col h-full">
-        <div id="media-card" class="flex items-center space-x-4 p-3.5 bg-neutral-950 rounded-2xl border border-neutral-900 shadow-lg">
+      <section id="tab-music" class="tab-pane active flex flex-col h-full justify-between pb-1">
+        <!-- Media Card -->
+        <div id="media-card" class="flex items-center space-x-4 p-3.5 bg-neutral-950 rounded-2xl border border-neutral-900 shadow-lg shrink-0">
           <div id="album-art-wrap" class="relative w-16 h-16 rounded-xl bg-neutral-900 flex items-center justify-center overflow-hidden shadow-lg border border-neutral-800 shrink-0">
             <svg id="album-art-placeholder" class="w-8 h-8 text-neutral-600" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
@@ -45,17 +57,28 @@
           </div>
           <div class="flex-1 min-w-0">
             <h2 id="track-title" class="text-base font-bold truncate text-white">No Track Playing</h2>
-            <p id="track-artist" class="text-xs text-neutral-400 truncate">Connect to Coucou</p>
+            <p id="track-artist" class="text-xs text-neutral-400 truncate mt-0.5">Connect to Coucou</p>
+          </div>
+        </div>
+
+        <!-- Track Scrubber Bar & Timestamps -->
+        <div id="scrubber-card" class="mt-2.5 px-3 py-2 bg-neutral-950/80 rounded-2xl border border-neutral-900 shadow-md shrink-0">
+          <div class="flex items-center justify-between text-[11px] font-mono text-neutral-400 mb-1 px-0.5">
+            <span id="time-current">0:00</span>
+            <span id="time-duration">0:00</span>
+          </div>
+          <div class="relative w-full flex items-center">
+            <input type="range" id="track-scrubber" min="0" max="100" value="0" step="0.1" class="custom-slider w-full" aria-label="Seek track" />
           </div>
         </div>
 
         <!-- Karaoke Scrolling Lyrics -->
-        <div id="lyrics-container" class="flex-1 overflow-y-auto my-4 text-center space-y-4 px-2 scroll-smooth">
+        <div id="lyrics-container" class="flex-1 overflow-y-auto my-2 text-center space-y-4 px-2 scroll-smooth">
           <p class="text-neutral-600 text-sm italic">Waiting for music...</p>
         </div>
 
         <!-- Playback Controls -->
-        <div class="flex items-center justify-around py-4 px-6 bg-neutral-950/80 backdrop-blur rounded-2xl border border-neutral-900 shadow-xl">
+        <div class="flex items-center justify-around py-3 px-6 bg-neutral-950/85 backdrop-blur rounded-2xl border border-neutral-900 shadow-xl shrink-0">
           <button id="btn-prev" class="control-btn" aria-label="Previous Track">
             <svg class="control-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 4a1 1 0 0 1 1 1v5.618l9.447-6.043A1 1 0 0 1 18 5.418v13.164a1 1 0 0 1-1.553.843L7 13.382V19a1 1 0 0 1-2 0V5a1 1 0 0 1 1-1z"/>
@@ -75,59 +98,91 @@
             </svg>
           </button>
         </div>
+
+        <!-- Volume Row -->
+        <div id="volume-card" class="flex items-center space-x-3 px-4 py-2 mt-2 bg-neutral-950/80 rounded-2xl border border-neutral-900 shadow-md shrink-0">
+          <button id="btn-mute" type="button" class="text-neutral-400 hover:text-white transition-colors" aria-label="Toggle Mute">
+            <svg id="volume-icon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+            <svg id="volume-mute-icon" class="w-4 h-4 hidden text-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+          </button>
+          <input type="range" id="volume-slider" min="0" max="100" value="50" step="1" class="custom-slider flex-1" aria-label="Volume slider" />
+          <span id="volume-level-label" class="text-[11px] font-mono text-neutral-400 w-8 text-right">50%</span>
+        </div>
       </section>
 
       <!-- Antigravity Tab -->
-      <section id="tab-agent" class="tab-pane hidden flex flex-col h-full justify-between p-2">
-        <div id="agent-status-card" class="p-4 bg-neutral-950 rounded-2xl border border-neutral-900">
-          <span class="text-xs uppercase font-semibold text-neutral-500">Agent Status</span>
-          <h3 id="agent-state-label" class="text-lg font-bold text-emerald-400 mt-1">Idle</h3>
-          <p id="agent-goal" class="text-sm text-neutral-300 mt-2">No active tasks</p>
+      <section id="tab-agent" class="tab-pane hidden flex flex-col h-full justify-between p-3 space-y-4 overflow-y-auto">
+        <div id="agent-status-card" class="p-4 bg-neutral-950 rounded-2xl border border-neutral-900 shadow-lg space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs uppercase font-bold text-neutral-500 tracking-wider">Agent Status</span>
+            <div id="agent-pulse-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+          </div>
+          <h3 id="agent-state-label" class="text-xl font-bold text-emerald-400">Idle</h3>
+          <div class="pt-1">
+            <span class="text-xs font-semibold text-neutral-500">Active Task / Goal:</span>
+            <p id="agent-goal" class="text-sm text-neutral-300 mt-1 leading-relaxed bg-neutral-900/60 p-3 rounded-xl border border-neutral-800/80">No active tasks</p>
+          </div>
         </div>
 
         <!-- Approval Prompt Card -->
-        <div id="approval-card" class="hidden p-5 bg-neutral-900 rounded-3xl border border-neutral-700 shadow-2xl space-y-4">
-          <span class="text-xs font-bold uppercase text-amber-400 tracking-wider">Action Approval Required</span>
-          <p id="approval-prompt-text" class="text-sm font-medium text-white"></p>
+        <div id="approval-card" class="hidden p-5 bg-neutral-900 rounded-3xl border border-amber-500/40 shadow-2xl space-y-4">
+          <div class="flex items-center space-x-2">
+            <svg class="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="text-xs font-bold uppercase text-amber-400 tracking-wider">Action Approval Required</span>
+          </div>
+          <p id="approval-prompt-text" class="text-sm font-medium text-white leading-relaxed"></p>
           <div class="flex space-x-3 pt-2">
-            <button id="btn-deny" class="flex-1 py-3 bg-red-600 active:bg-red-700 text-white font-bold rounded-xl active:scale-95 transition-transform">Deny</button>
-            <button id="btn-allow" class="flex-1 py-3 bg-emerald-500 active:bg-emerald-600 text-black font-bold rounded-xl active:scale-95 transition-transform">Allow</button>
+            <button id="btn-deny" class="flex-1 py-3.5 bg-red-600 active:bg-red-700 text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg text-sm">Deny</button>
+            <button id="btn-allow" class="flex-1 py-3.5 bg-emerald-500 active:bg-emerald-600 text-black font-bold rounded-2xl active:scale-95 transition-transform shadow-lg text-sm">Allow</button>
           </div>
         </div>
       </section>
 
       <!-- Remote Chat Tab -->
       <section id="tab-chat" class="tab-pane hidden flex flex-col h-full justify-between">
-        <div id="chat-messages" class="flex-1 overflow-y-auto space-y-3 p-3 scroll-smooth">
-          <div class="chat-bubble flex items-start space-x-2.5">
-            <div class="w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0 shadow">
-              <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Message Stream with Comfortable Spacing -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 px-3 py-4 scroll-smooth">
+          <div class="chat-bubble flex items-start space-x-3">
+            <div class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0 shadow">
+              <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2v2"/><rect x="4" y="4" width="16" height="14" rx="3"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M9 15h6"/>
               </svg>
             </div>
-            <div class="bg-neutral-950 border border-neutral-800 rounded-2xl rounded-tl-sm p-3 text-xs text-neutral-300 shadow leading-relaxed max-w-[85%]">
+            <div class="bg-neutral-900 border border-neutral-800 rounded-2xl rounded-tl-sm p-3.5 text-sm text-neutral-200 shadow-md leading-relaxed max-w-[85%]">
               Connected to laptop! Type any message below to chat with your AI or copy prompts directly to your Windows clipboard.
             </div>
           </div>
         </div>
 
-        <!-- Input Controls -->
-        <div class="p-3 bg-neutral-950/90 backdrop-blur border-t border-neutral-900 flex flex-col space-y-2">
-          <div class="flex items-center space-x-2 text-[11px]">
-            <button id="btn-mode-ai" type="button" class="mode-pill active px-3 py-1 rounded-full border border-emerald-500/50 bg-emerald-500/15 text-emerald-400 font-medium transition-all flex items-center space-x-1.5">
-              <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <!-- Spacious, Uncramped Input Controls with Safe Area Padding -->
+        <div class="p-3.5 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-850 flex flex-col space-y-3 shrink-0 chat-input-bar">
+          <div class="flex items-center space-x-2 text-xs">
+            <button id="btn-mode-ai" type="button" class="mode-pill active px-3.5 py-1.5 rounded-full border border-emerald-500/50 bg-emerald-500/15 text-emerald-400 font-semibold transition-all flex items-center space-x-1.5">
+              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               <span>Ask AI</span>
             </button>
-            <button id="btn-mode-clip" type="button" class="mode-pill px-3 py-1 rounded-full border border-neutral-800 bg-neutral-900 text-neutral-400 font-medium transition-all flex items-center space-x-1.5">
-              <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <button id="btn-mode-clip" type="button" class="mode-pill px-3.5 py-1.5 rounded-full border border-neutral-800 bg-neutral-900 text-neutral-400 font-semibold transition-all flex items-center space-x-1.5">
+              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               <span>Copy to PC</span>
             </button>
-            <span id="chat-status-toast" class="text-[11px] text-emerald-400 ml-auto hidden font-medium">Copied!</span>
+            <span id="chat-status-toast" class="text-xs text-emerald-400 ml-auto hidden font-semibold">Copied!</span>
           </div>
-          <form id="chat-form" class="flex items-center space-x-2">
-            <input id="chat-input" type="text" placeholder="Type prompt or message..." class="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition-colors" autocomplete="off" />
-            <button id="btn-chat-send" type="submit" class="p-2.5 bg-white active:bg-neutral-200 text-black rounded-xl font-bold active:scale-95 transition-transform shrink-0 shadow" aria-label="Send">
-              <svg class="control-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <form id="chat-form" class="flex items-center space-x-2.5">
+            <input id="chat-input" type="text" placeholder="Type prompt or message..." class="flex-1 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors" autocomplete="off" />
+            <button id="btn-chat-send" type="submit" class="w-11 h-11 bg-white active:bg-neutral-200 text-black rounded-2xl font-bold active:scale-95 transition-transform flex items-center justify-center shrink-0 shadow-lg" aria-label="Send">
+              <svg class="control-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
               </svg>
             </button>

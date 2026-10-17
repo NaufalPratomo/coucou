@@ -72,6 +72,7 @@ fn test_serialize_outbound_messages() {
             album_art: Some("art.png".into()),
             duration_ms: 200000,
             position_ms: 50000,
+            volume: Some(80),
             lyrics: vec![LyricLine {
                 time_ms: 1000,
                 text: "Hello".into(),

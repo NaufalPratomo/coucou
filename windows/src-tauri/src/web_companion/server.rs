@@ -348,6 +348,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
             album_art,
             duration_ms: dur_ms,
             position_ms: pos_ms,
+            volume: Some(p.volume.clamp(0, 100) as u8),
             lyrics: Vec::new(),
         })
     });
@@ -450,6 +451,7 @@ pub async fn handle_ws_session(
                             "prev" | "previous" => "previous".to_string(),
                             "next" => "next".to_string(),
                             "seek" => "seek".to_string(),
+                            "volume" => "volume".to_string(),
                             a => a.to_string(),
                         };
                         let app_clone = app.clone();

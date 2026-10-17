@@ -43,6 +43,8 @@ pub struct MediaState {
     pub duration_ms: u64,
     #[serde(rename = "positionMs")]
     pub position_ms: u64,
+    #[serde(default)]
+    pub volume: Option<u8>,
     pub lyrics: Vec<LyricLine>,
 }
 
