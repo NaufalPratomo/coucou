@@ -46,7 +46,8 @@ export class CompanionClient {
     private onState: (state: StateSnapshot) => void,
     private onTick: (posMs: number) => void,
     private onPrompt: (prompt: ApprovalPrompt) => void,
-    private onStatusChange: (connected: boolean) => void
+    private onStatusChange: (connected: boolean) => void,
+    private onChatReply?: (reply: { text: string; isUser: boolean }) => void
   ) {
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
@@ -139,6 +140,8 @@ export class CompanionClient {
           this.onTick(msg.payload.positionMs);
         } else if (msg.type === "agent:request") {
           this.onPrompt(msg.payload);
+        } else if (msg.type === "chat:reply") {
+          this.onChatReply?.(msg.payload);
         }
       } catch (e) {
         console.error("Failed to parse WS msg", e);
@@ -187,6 +190,12 @@ export class CompanionClient {
   public sendDecision(requestId: string, allow: boolean): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "agent:decision", payload: { requestId, allow } }));
+    }
+  }
+
+  public sendChatMessage(text: string, mode: "ai" | "clip" = "ai"): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "chat:send", payload: { text, mode } }));
     }
   }
 }

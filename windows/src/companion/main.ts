@@ -9,15 +9,19 @@ import { setupMusicPlayer } from "./components/MusicPlayer";
 import { setupAntigravityCard } from "./components/AntigravityCard";
 import { MochiCanvas } from "./components/MochiCanvas";
 
+import { setupRemoteChat } from "./components/RemoteChat";
+
 export let client: CompanionClient | null = null;
 export let player: ReturnType<typeof setupMusicPlayer> | null = null;
 export let agentCard: ReturnType<typeof setupAntigravityCard> | null = null;
+export let chatUi: ReturnType<typeof setupRemoteChat> | null = null;
 export let mochi: MochiCanvas | null = null;
 
-export function switchTab(targetTab: "music" | "agent"): void {
+export function switchTab(targetTab: "music" | "agent" | "chat"): void {
   const tabButtons = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
   const tabMusic = document.getElementById("tab-music");
   const tabAgent = document.getElementById("tab-agent");
+  const tabChat = document.getElementById("tab-chat");
 
   tabButtons.forEach((b) => {
     const tab = b.getAttribute("data-tab");
@@ -35,11 +39,22 @@ export function switchTab(targetTab: "music" | "agent"): void {
     tabMusic?.classList.add("active");
     tabAgent?.classList.add("hidden");
     tabAgent?.classList.remove("active");
+    tabChat?.classList.add("hidden");
+    tabChat?.classList.remove("active");
   } else if (targetTab === "agent") {
     tabAgent?.classList.remove("hidden");
     tabAgent?.classList.add("active");
     tabMusic?.classList.add("hidden");
     tabMusic?.classList.remove("active");
+    tabChat?.classList.add("hidden");
+    tabChat?.classList.remove("active");
+  } else if (targetTab === "chat") {
+    tabChat?.classList.remove("hidden");
+    tabChat?.classList.add("active");
+    tabMusic?.classList.add("hidden");
+    tabMusic?.classList.remove("active");
+    tabAgent?.classList.add("hidden");
+    tabAgent?.classList.remove("active");
   }
 }
 
@@ -64,7 +79,7 @@ export function setupTabs(): void {
 
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const targetTab = btn.getAttribute("data-tab") as "music" | "agent" | null;
+      const targetTab = btn.getAttribute("data-tab") as "music" | "agent" | "chat" | null;
       if (!targetTab) return;
 
       if ("vibrate" in navigator) {
@@ -148,7 +163,7 @@ export function initCompanionClient(): CompanionClient {
         }
       }
 
-      if (player && state.media) {
+      if (player) {
         player.update(state.media);
       }
       if (agentCard && state.agent) {
@@ -178,11 +193,17 @@ export function initCompanionClient(): CompanionClient {
         mochi.setMood("idle");
         mochi.setMusicPlaying(false);
       }
+    },
+    (reply: { text: string; isUser: boolean }) => {
+      if (chatUi) {
+        chatUi.receiveReply(reply);
+      }
     }
   );
 
   player = setupMusicPlayer(companion);
   agentCard = setupAntigravityCard(companion);
+  chatUi = setupRemoteChat(companion);
   companion.connect();
   return companion;
 }

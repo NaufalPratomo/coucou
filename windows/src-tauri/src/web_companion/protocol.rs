@@ -14,6 +14,12 @@ pub enum InboundMessage {
         request_id: String,
         allow: bool,
     },
+    #[serde(rename = "chat:send")]
+    ChatSend {
+        text: String,
+        #[serde(default)]
+        mode: Option<String>,
+    },
     #[serde(rename = "ping")]
     Ping,
 }
@@ -86,6 +92,12 @@ pub enum OutboundMessage {
     },
     #[serde(rename = "agent:request")]
     AgentPrompt(ApprovalPrompt),
+    #[serde(rename = "chat:reply")]
+    ChatReply {
+        text: String,
+        #[serde(rename = "isUser")]
+        is_user: bool,
+    },
     #[serde(rename = "pong")]
     Pong,
 }

@@ -182,3 +182,46 @@ async fn test_http_response_401_headers() {
     assert!(text.contains("Content-Length: 12"));
 }
 
+#[test]
+fn test_media_action_normalization() {
+    let normalize = |action: &str| match action.to_ascii_lowercase().as_str() {
+        "playpause" | "play_pause" | "toggle" => "playPause".to_string(),
+        "prev" | "previous" => "previous".to_string(),
+        "next" => "next".to_string(),
+        "seek" => "seek".to_string(),
+        a => a.to_string(),
+    };
+
+    assert_eq!(normalize("playpause"), "playPause");
+    assert_eq!(normalize("play_pause"), "playPause");
+    assert_eq!(normalize("toggle"), "playPause");
+    assert_eq!(normalize("playPause"), "playPause");
+    assert_eq!(normalize("prev"), "previous");
+    assert_eq!(normalize("previous"), "previous");
+    assert_eq!(normalize("next"), "next");
+    assert_eq!(normalize("seek"), "seek");
+}
+
+#[test]
+fn test_chat_messages_serialization() {
+    let send_raw = r#"{"type":"chat:send","payload":{"text":"Hello AI","mode":"ai"}}"#;
+    let send_msg: InboundMessage = serde_json::from_str(send_raw).expect("must parse chat send");
+    match send_msg {
+        InboundMessage::ChatSend { text, mode } => {
+            assert_eq!(text, "Hello AI");
+            assert_eq!(mode, Some("ai".to_string()));
+        }
+        _ => panic!("wrong message type"),
+    }
+
+    let reply = OutboundMessage::ChatReply {
+        text: "Hello from Coucou!".into(),
+        is_user: false,
+    };
+    let json = serde_json::to_string(&reply).expect("must serialize chat reply");
+    assert!(json.contains(r#""type":"chat:reply""#));
+    assert!(json.contains(r#""text":"Hello from Coucou!""#));
+    assert!(json.contains(r#""isUser":false"#));
+}
+
+

@@ -493,10 +493,23 @@ pub fn spotify_installed() -> bool {
     }
 }
 
+pub fn get_cached_artwork(art_url: &str) -> Option<String> {
+    #[cfg(windows)]
+    {
+        let art = win::ART.lock().unwrap();
+        art.iter().find(|(k, _)| k == art_url).map(|(_, d)| d.clone())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = art_url;
+        None
+    }
+}
+
 /// Starts the listener when the pill is declared, stops it when it is not.
 /// Called at launch and after every settings save.
 pub fn sync(app: &AppHandle, active_integrations: &[String]) {
-    let on = active_integrations.iter().any(|id| id == PILL_ID);
+    let on = active_integrations.iter().any(|id| id == PILL_ID) || cfg!(windows);
     #[cfg(target_os = "linux")]
     linux::sync(app, on);
     #[cfg(windows)]
@@ -1452,7 +1465,7 @@ mod win {
         LazyLock::new(|| Mutex::new(Shared { generation: 0, active: false, wake: None, state: PlayerState::default() }));
 
     /// Covers already read, by the track's art key; the newest last.
-    static ART: LazyLock<Mutex<VecDeque<(String, String)>>> = LazyLock::new(|| Mutex::new(VecDeque::new()));
+    pub(super) static ART: LazyLock<Mutex<VecDeque<(String, String)>>> = LazyLock::new(|| Mutex::new(VecDeque::new()));
 
     /// WinRT and Core Audio need COM on the calling thread. A thread that has it
     /// already, in either model, keeps it.
