@@ -1,5 +1,13 @@
 // Coucou iPhone Web Companion — Main Bootstrap
 
+import {
+  CompanionClient,
+  type StateSnapshot,
+  type ApprovalPrompt,
+} from "./ws";
+
+export let client: CompanionClient | null = null;
+
 export function setupTabs(): void {
   const tabButtons = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
   const tabMusic = document.getElementById("tab-music");
@@ -40,8 +48,40 @@ export function setupTabs(): void {
   });
 }
 
+export function initCompanionClient(): CompanionClient {
+  const islandStatus = document.getElementById("island-status");
+  const batteryLevel = document.getElementById("battery-level");
+
+  const companion = new CompanionClient(
+    (state: StateSnapshot) => {
+      if (batteryLevel && state.system) {
+        const charging = state.system.isCharging ? " ⚡" : "";
+        batteryLevel.textContent = `${state.system.batteryPercent}%${charging}`;
+      }
+      if (islandStatus && state.agent?.status && state.agent.status !== "idle") {
+        islandStatus.textContent = state.agent.status;
+      }
+    },
+    (_posMs: number) => {
+      // Audio playback position tick — wired in Task 6
+    },
+    (_prompt: ApprovalPrompt) => {
+      // Agent approval request — wired in Task 7
+    },
+    (connected: boolean) => {
+      if (islandStatus) {
+        islandStatus.textContent = connected ? "Coucou Connected" : "Reconnecting...";
+      }
+    }
+  );
+
+  companion.connect();
+  return companion;
+}
+
 function init(): void {
   setupTabs();
+  client = initCompanionClient();
 }
 
 if (document.readyState === "loading") {
