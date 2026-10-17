@@ -6,9 +6,11 @@ import {
   type ApprovalPrompt,
 } from "./ws";
 import { setupMusicPlayer } from "./components/MusicPlayer";
+import { setupAntigravityCard } from "./components/AntigravityCard";
 
 export let client: CompanionClient | null = null;
 export let player: ReturnType<typeof setupMusicPlayer> | null = null;
+export let agentCard: ReturnType<typeof setupAntigravityCard> | null = null;
 
 export function setupTabs(): void {
   const tabButtons = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
@@ -60,11 +62,19 @@ export function initCompanionClient(): CompanionClient {
         const charging = state.system.isCharging ? " ⚡" : "";
         batteryLevel.textContent = `${state.system.batteryPercent}%${charging}`;
       }
-      if (islandStatus && state.agent?.status && state.agent.status !== "idle") {
-        islandStatus.textContent = state.agent.status;
+      if (islandStatus) {
+        const agentStatus = state.agent?.status?.toLowerCase();
+        if (agentStatus && agentStatus !== "idle") {
+          islandStatus.textContent = state.agent!.status;
+        } else if (agentStatus === "idle") {
+          islandStatus.textContent = "Coucou Connected";
+        }
       }
       if (player && state.media) {
         player.update(state.media);
+      }
+      if (agentCard && state.agent) {
+        agentCard.update(state.agent);
       }
     },
     (posMs: number) => {
@@ -72,8 +82,10 @@ export function initCompanionClient(): CompanionClient {
         player.tick(posMs);
       }
     },
-    (_prompt: ApprovalPrompt) => {
-      // Agent approval request — wired in Task 7
+    (prompt: ApprovalPrompt) => {
+      if (agentCard) {
+        agentCard.prompt(prompt);
+      }
     },
     (connected: boolean) => {
       if (islandStatus) {
@@ -83,6 +95,7 @@ export function initCompanionClient(): CompanionClient {
   );
 
   player = setupMusicPlayer(companion);
+  agentCard = setupAntigravityCard(companion);
   companion.connect();
   return companion;
 }
