@@ -287,7 +287,7 @@ static SESSIONS: LazyLock<Mutex<std::collections::HashMap<String, SessionRecord>
     Mutex::new(std::collections::HashMap::new())
 });
 
-pub fn record_desktop_sessions(desktop_sessions: &[crate::phone_link::hub::SessionIn]) {
+pub fn record_desktop_sessions(desktop_sessions: &[crate::phone_link::SessionIn]) {
     let now = (now_ms()) as u64;
     let mut store = SESSIONS.lock().unwrap();
     for s in desktop_sessions {
@@ -808,24 +808,24 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
     let agent = if hook_state.pending_request.is_some() || has_pipe_pending {
         Some(AgentState {
             status: "Waiting for Confirmation".to_string(),
-            active_goal: hook_state.active_goal,
-            current_tool: hook_state.current_tool,
+            active_goal: hook_state.active_goal.clone(),
+            current_tool: hook_state.current_tool.clone(),
             pending_request: hook_state.pending_request,
             diff_summary,
         })
     } else if hook_state.status != "idle" && now.saturating_sub(hook_state.last_event_time) < 120_000 {
         Some(AgentState {
             status: if hook_state.status == "thinking" { "Thinking".to_string() } else { "Running".to_string() },
-            active_goal: hook_state.active_goal,
-            current_tool: hook_state.current_tool,
+            active_goal: hook_state.active_goal.clone(),
+            current_tool: hook_state.current_tool.clone(),
             pending_request: None,
             diff_summary,
         })
     } else {
         Some(AgentState {
             status: "Idle".to_string(),
-            active_goal: hook_state.active_goal,
-            current_tool: hook_state.current_tool.or_else(|| Some("Standing by".to_string())),
+            active_goal: hook_state.active_goal.clone(),
+            current_tool: hook_state.current_tool.clone().or_else(|| Some("Standing by".to_string())),
             pending_request: None,
             diff_summary,
         })

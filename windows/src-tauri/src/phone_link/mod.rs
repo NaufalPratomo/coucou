@@ -35,7 +35,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 use crate::{island, log, pipe, recap, secrets, settings, Shared};
-use hub::{ApprovalIn, Host, Hub, SessionIn};
+pub use hub::{ApprovalIn, Host, Hub, SessionIn};
 use pairing::SecretStore;
 
 /// The port the pairing link offers; another is taken if it is busy.
