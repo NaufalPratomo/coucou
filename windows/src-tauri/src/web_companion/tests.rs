@@ -132,3 +132,44 @@ fn test_route_query_stripping() {
     let path_companion = raw_path_companion.split('?').next().unwrap_or(raw_path_companion);
     assert_eq!(path_companion, "/companion.html");
 }
+
+#[test]
+fn test_token_verification() {
+    let token = super::pairing::get_or_create_token();
+    assert!(!token.is_empty());
+    assert!(super::pairing::verify_token(&token));
+    assert!(!super::pairing::verify_token("invalid_token"));
+}
+
+#[test]
+fn test_token_stability_and_rejection() {
+    let t1 = super::pairing::get_or_create_token();
+    let t2 = super::pairing::get_or_create_token();
+    assert_eq!(t1, t2);
+    assert!(!super::pairing::verify_token(""));
+    assert!(!super::pairing::verify_token("   "));
+}
+
+#[test]
+fn test_qr_svg_generation() {
+    let svg = super::pairing::generate_qr_svg();
+    assert!(!svg.is_empty());
+    assert!(svg.contains("<svg"));
+}
+
+#[test]
+fn test_extract_token() {
+    assert_eq!(super::server::extract_token("/ws?token=sec_tok_123"), "sec_tok_123");
+    assert_eq!(super::server::extract_token("/ws?a=1&token=sec_tok_123&b=2"), "sec_tok_123");
+    assert_eq!(super::server::extract_token("/ws"), "");
+    assert_eq!(super::server::extract_token("/ws?token="), "");
+}
+
+#[tokio::test]
+async fn test_http_response_401_headers() {
+    let headers = super::server::http_response(401, "text/plain", b"Unauthorized");
+    let text = String::from_utf8_lossy(&headers);
+    assert!(text.contains("HTTP/1.1 401 Unauthorized"));
+    assert!(text.contains("Content-Length: 12"));
+}
+

@@ -77,6 +77,13 @@ export interface PhoneLinkPairing {
   relay: string | null;
 }
 
+/** What the settings window shows to pair the iPhone Web Companion (PWA). */
+export interface CompanionPairing {
+  url: string;
+  token: string;
+  qr: string;
+}
+
 /** One session as the phone sees it; Rust stamps `updatedAt`. */
 export interface PhoneLinkSession {
   pillId: string;
@@ -411,6 +418,8 @@ export const Bridge = {
   spotifyInstalled: () => call<boolean>("spotify_installed"),
   /** Fetch synced/plain lyrics from local .lrc files or online LRCLIB. */
   getLyrics: (title: string, artist: string) => call<string | null>("get_lyrics", { title, artist }),
+  /** Pairing information for the iPhone Web Companion (PWA). */
+  getCompanionPairing: () => call<CompanionPairing>("get_companion_pairing"),
 };
 
 export type SpotifyAction = "playPause" | "next" | "previous" | "seek" | "shuffle" | "repeat" | "volume";

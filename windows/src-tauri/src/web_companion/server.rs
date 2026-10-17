@@ -13,6 +13,7 @@ pub const DEFAULT_COMPANION_PORT: u16 = 47822;
 pub fn http_response(code: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
     let status_str = match code {
         200 => "OK",
+        401 => "Unauthorized",
         404 => "Not Found",
         _ => "Unknown",
     };
@@ -25,6 +26,20 @@ pub fn http_response(code: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
     resp
 }
 
+pub fn extract_token(path: &str) -> &str {
+    if let Some(query) = path.split('?').nth(1) {
+        for pair in query.split('&') {
+            let mut parts = pair.splitn(2, '=');
+            if let Some(key) = parts.next() {
+                if key == "token" {
+                    return parts.next().unwrap_or("");
+                }
+            }
+        }
+    }
+    ""
+}
+
 pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: SocketAddr) {
     let mut buf = [0u8; 2048];
     let n = match stream.peek(&mut buf).await {
@@ -32,9 +47,24 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
         _ => return,
     };
     let req_header = String::from_utf8_lossy(&buf[..n]);
+    let raw_path = req_header
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .unwrap_or("/");
 
     let req_lower = req_header.to_ascii_lowercase();
     if req_lower.contains("upgrade: websocket") {
+        let token = extract_token(raw_path);
+        if !super::pairing::verify_token(token) {
+            let mut full_buf = vec![0u8; n];
+            let _ = stream.read_exact(&mut full_buf).await;
+            let resp = http_response(401, "text/plain", b"Unauthorized: invalid pairing token");
+            let _ = stream.write_all(&resp).await;
+            let _ = stream.flush().await;
+            return;
+        }
+
         if let Ok(ws_stream) = tokio_tungstenite::accept_async(stream).await {
             handle_ws_session(app, ws_stream, addr).await;
         }
@@ -44,11 +74,6 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
     // Handle HTTP GET
     let mut full_buf = vec![0u8; n];
     let _ = stream.read_exact(&mut full_buf).await;
-    let raw_path = req_header
-        .lines()
-        .next()
-        .and_then(|l| l.split_whitespace().nth(1))
-        .unwrap_or("/");
     let path = raw_path.split('?').next().unwrap_or(raw_path);
 
     let (code, content_type, body) = match path {

@@ -701,6 +701,17 @@ fn open_settings_window(app: AppHandle, page: Option<String>) {
     show_hub(&app, Some(page.as_deref().unwrap_or("general")));
 }
 
+#[tauri::command]
+pub fn get_companion_pairing() -> serde_json::Value {
+    let token = web_companion::pairing::get_or_create_token();
+    let qr = web_companion::pairing::generate_qr_svg();
+    serde_json::json!({
+        "url": format!("http://coucou.local:47822?token={token}"),
+        "token": token,
+        "qr": qr
+    })
+}
+
 pub fn run() {
     platform::prepare_environment();
     let loaded = settings::load();
@@ -806,6 +817,7 @@ pub fn run() {
             phone_link::phone_chat_status,
             phone_link::phone_chat_set_enabled,
             phone_link::phone_chat_set_models,
+            get_companion_pairing,
             recap::recap_history,
             recap::recap_prefs,
             recap::recap_set_enabled,

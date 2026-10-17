@@ -1,7 +1,7 @@
 // Settings → Android phone: the switch for the phone link and the code that
 // pairs a phone with this computer. Off until the user turns it on.
 
-import { Bridge, type PhoneChatStatus, type PhoneLinkPairing, type PhoneLinkStatus, type PhoneRelayState, type PhoneRelayStatus } from "../core/bridge";
+import { Bridge, type CompanionPairing, type PhoneChatStatus, type PhoneLinkPairing, type PhoneLinkStatus, type PhoneRelayState, type PhoneRelayStatus } from "../core/bridge";
 import { modelId, modelsOf, toggleModel, usableProviders } from "../core/phone-chat";
 import { PROVIDERS, type ProviderDef } from "../core/providers";
 import type { Settings } from "../core/state";
@@ -109,8 +109,89 @@ export function phoneSection(on: boolean, makeToggle: Toggle, settings: Settings
     h("div", { class: "row" }, h("label", { text: t("Phone link") }), switchEl),
     note,
     detail,
+    iphoneCompanionBlock(),
   );
   return section;
+}
+
+/**
+ * iPhone Web Companion (PWA): a local web app on port 47822 with real-time media/karaoke sync,
+ * Antigravity agent controls, and animated Mochi. Displays pairing QR and local link.
+ */
+function iphoneCompanionBlock(): HTMLElement {
+  const box = h("div", { style: "margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border);" });
+  const qrBox = h("div", {});
+  const button = h("button", { text: "Show iPhone Pairing QR" });
+  let visible = false;
+
+  const reveal = async () => {
+    try {
+      const pairing: CompanionPairing | null = await Bridge.getCompanionPairing();
+      if (!pairing) {
+        qrBox.replaceChildren(h("div", { class: "hint", text: "Could not load companion pairing" }));
+        return;
+      }
+
+      const qr = h("div", { class: "qr" });
+      qr.innerHTML = pairing.qr;
+
+      const link = h("a", {
+        href: pairing.url,
+        text: pairing.url,
+        style: "display: inline-block; color: var(--accent); text-decoration: underline; word-break: break-all;",
+      }) as HTMLAnchorElement;
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        void Bridge.openUrl(pairing.url);
+      });
+
+      const copyBtn = h("button", { text: t("Copy link") });
+      const copyHint = h("div", {
+        class: "hint",
+        text: "The link has been copied to your clipboard. Open Safari on your iPhone and paste the link.",
+      });
+      copyHint.hidden = true;
+
+      copyBtn.addEventListener("click", () => {
+        void navigator.clipboard?.writeText(pairing.url).then(() => {
+          copyHint.hidden = false;
+          copyBtn.textContent = t("Copied");
+          window.setTimeout(() => (copyBtn.textContent = t("Copy link")), 1500);
+        });
+      });
+
+      qrBox.replaceChildren(
+        h("div", { class: "hint", text: "Scan this QR code with your iPhone camera to open the Coucou Web Companion:" }),
+        qr,
+        h("div", { class: "row", style: "margin-top: 8px; gap: 8px;" }, link, copyBtn),
+        copyHint,
+        h("div", { class: "hint", text: "On iOS Safari, tap Share → 'Add to Home Screen' to install as a standalone PWA with OLED pitch black display." }),
+        h("div", { class: "hint", text: "Make sure your iPhone and computer are on the same Wi-Fi network (coucou.local:47822)." }),
+      );
+    } catch (err) {
+      qrBox.replaceChildren(h("div", { class: "hint", text: String(err) }));
+    }
+  };
+
+  button.addEventListener("click", () => {
+    visible = !visible;
+    if (visible) {
+      button.textContent = "Hide iPhone Pairing QR";
+      void reveal();
+    } else {
+      button.textContent = "Show iPhone Pairing QR";
+      qrBox.replaceChildren();
+    }
+  });
+
+  box.append(
+    h("h2", {}, h("span", { text: "iPhone Web Companion (PWA)" })),
+    h("div", { class: "hint", text: "Control Spotify playback, view live synced lyrics, and manage AI agent approvals directly from your iPhone browser or home screen PWA." }),
+    h("div", { class: "row" }, button),
+    qrBox,
+  );
+
+  return box;
 }
 
 /** What the status line says about the relay. */
