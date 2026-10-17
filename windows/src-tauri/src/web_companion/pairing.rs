@@ -24,13 +24,17 @@ pub fn verify_token(provided: &str) -> bool {
     provided == token.trim()
 }
 
-pub fn generate_qr_svg() -> String {
-    let token = get_or_create_token();
-    let url = format!("http://coucou.local:47822?token={token}");
+pub fn generate_qr_svg_for_url(url: &str) -> String {
     match QrCode::new(url.as_bytes()) {
         Ok(code) => code.render::<svg::Color>().min_dimensions(200, 200).build(),
         Err(_) => String::new(),
     }
+}
+
+pub fn generate_qr_svg() -> String {
+    let token = get_or_create_token();
+    let url = format!("http://coucou.local:47822?token={token}");
+    generate_qr_svg_for_url(&url)
 }
 
 fn generate_random_token() -> String {

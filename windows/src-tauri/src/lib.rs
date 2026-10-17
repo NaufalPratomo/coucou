@@ -704,9 +704,13 @@ fn open_settings_window(app: AppHandle, page: Option<String>) {
 #[tauri::command]
 fn get_companion_pairing() -> serde_json::Value {
     let token = web_companion::pairing::get_or_create_token();
-    let qr = web_companion::pairing::generate_qr_svg();
+    let host = phone_link::pairing::lan_address()
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "coucou.local".to_string());
+    let url = format!("http://{host}:47822?token={token}");
+    let qr = web_companion::pairing::generate_qr_svg_for_url(&url);
     serde_json::json!({
-        "url": format!("http://coucou.local:47822?token={token}"),
+        "url": url,
         "token": token,
         "qr": qr
     })
@@ -921,7 +925,7 @@ pub fn run() {
             integrations::start(handle.clone());
             spotify::sync(&handle, &loaded.active_integrations);
             shortcuts::apply(&handle, &loaded.shortcuts);
-            let _ = web_companion::server::start_web_companion(handle.clone(), web_companion::server::DEFAULT_COMPANION_PORT);
+            web_companion::server::start_web_companion(handle.clone(), web_companion::server::DEFAULT_COMPANION_PORT);
             if loaded.autostart {
                 // Login items written before 0.5 start Coucou without --autostart:
                 // writing it again adds it, so the window stays hidden at login.

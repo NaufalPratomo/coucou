@@ -155,6 +155,10 @@ fn test_qr_svg_generation() {
     let svg = super::pairing::generate_qr_svg();
     assert!(!svg.is_empty());
     assert!(svg.contains("<svg"));
+
+    let custom_svg = super::pairing::generate_qr_svg_for_url("http://192.168.1.50:47822?token=abc");
+    assert!(!custom_svg.is_empty());
+    assert!(custom_svg.contains("<svg"));
 }
 
 #[test]

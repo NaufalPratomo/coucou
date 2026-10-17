@@ -217,7 +217,7 @@ pub async fn handle_ws_session(
                 match inbound {
                     InboundMessage::MediaAction { action, value } => {
                         let app_clone = app.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             spotify::spotify_control(app_clone, action, value).await;
                         });
                     }
@@ -235,8 +235,8 @@ pub async fn handle_ws_session(
     }
 }
 
-pub fn start_web_companion(app: AppHandle, port: u16) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
+pub fn start_web_companion(app: AppHandle, port: u16) {
+    tauri::async_runtime::spawn(async move {
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
         let listener = match TcpListener::bind(addr).await {
             Ok(l) => l,
@@ -250,12 +250,12 @@ pub fn start_web_companion(app: AppHandle, port: u16) -> tokio::task::JoinHandle
         loop {
             if let Ok((stream, peer)) = listener.accept().await {
                 let app_c = app.clone();
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     handle_connection(app_c, stream, peer).await;
                 });
             }
         }
-    })
+    });
 }
 
 #[cfg(test)]
