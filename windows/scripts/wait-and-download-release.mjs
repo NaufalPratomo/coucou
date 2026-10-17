@@ -43,7 +43,7 @@ async function checkRelease() {
 
 async function checkRuns() {
   try {
-    const res = await fetch(`https://api.github.com/repos/NaufalPratomo/coucou/actions/runs?per_page=5`, { headers });
+    const res = await fetch(`https://api.github.com/repos/NaufalPratomo/coucou/actions/runs?per_page=20`, { headers });
     if (res.ok) {
       const data = await res.json();
       const run = data.workflow_runs?.find(r => r.name === 'Windows' && r.head_branch === TAG);
