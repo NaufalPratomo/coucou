@@ -77,6 +77,13 @@ async function main() {
       try {
         cp.execSync(`"${TARGET_PATH}" /S`, { stdio: 'inherit' });
         console.log('Installation completed successfully.');
+        const localAppData = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || 'C:\\Users\\Nof', 'AppData', 'Local');
+        const exePath = path.join(localAppData, 'Coucou', 'coucou.exe');
+        if (fs.existsSync(exePath)) {
+          console.log(`Starting ${exePath}...`);
+          cp.spawn(exePath, [], { detached: true, stdio: 'ignore' }).unref();
+          console.log('Coucou launched successfully.');
+        }
       } catch (err) {
         console.error('Installation error:', err.message);
       }

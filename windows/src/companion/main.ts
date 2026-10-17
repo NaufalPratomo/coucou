@@ -193,8 +193,11 @@ export function initCompanionClient(): CompanionClient {
       if (player) {
         player.update(state.media);
       }
-      if (agentCard && state.agent) {
-        agentCard.update(state.agent);
+      if (agentCard) {
+        agentCard.renderSessions(state.sessions);
+        if (state.agent) {
+          agentCard.update(state.agent);
+        }
       }
     },
     (posMs: number) => {
@@ -224,6 +227,11 @@ export function initCompanionClient(): CompanionClient {
     (reply: { text: string; isUser: boolean }) => {
       if (chatUi) {
         chatUi.receiveReply(reply);
+      }
+    },
+    (diffPayload: { sessionId?: string; files: any[] }) => {
+      if (agentCard) {
+        agentCard.receiveDiffData(diffPayload.files);
       }
     }
   );

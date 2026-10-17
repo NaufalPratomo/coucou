@@ -826,6 +826,7 @@ pub fn phone_link_publish_prefs(window: WebviewWindow, link: State<PhoneLink>, o
 #[tauri::command]
 pub fn phone_link_publish(window: WebviewWindow, link: State<PhoneLink>, sessions: Vec<SessionIn>, approval: Option<ApprovalIn>) -> Result<(), String> {
     only_island(&window)?;
+    crate::web_companion::server::record_desktop_sessions(&sessions);
     if link.running.lock().unwrap().is_none() {
         return Ok(());
     }

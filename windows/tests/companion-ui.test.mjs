@@ -58,3 +58,25 @@ test("companion.html has spacious remote chat layout and mode pills", () => {
   assert.ok(html.includes('id="btn-mode-ai"'), "must have Ask AI mode button");
   assert.ok(html.includes('id="btn-mode-clip"'), "must have Copy to PC mode button");
 });
+
+test("companion.html has multi-session switcher, question card, and git diff viewer", () => {
+  const html = readFileSync(resolve(process.cwd(), "companion.html"), "utf8");
+  // Multi-session switcher
+  assert.ok(html.includes('id="session-switcher"'), "must have session switcher container");
+  assert.ok(html.includes('id="session-pills-row"'), "must have session pills row");
+  assert.ok(html.includes('id="session-count-badge"'), "must have session count badge");
+
+  // Interactive Question Card
+  assert.ok(html.includes('id="question-card"'), "must have interactive question card");
+  assert.ok(html.includes('id="question-mode-badge"'), "must have question mode badge");
+  assert.ok(html.includes('id="question-list-container"'), "must have question options container");
+  assert.ok(html.includes('id="btn-question-submit"'), "must have question submit button");
+  assert.ok(html.includes('id="btn-question-decline"'), "must have question decline button");
+
+  // Git Diff Viewer
+  assert.ok(html.includes('id="diff-card"'), "must have git diff card");
+  assert.ok(html.includes('id="diff-files-list"'), "must have diff files list");
+  assert.ok(html.includes('id="diff-viewer"'), "must have expandable diff viewer sheet");
+  assert.ok(html.includes('id="diff-lines-container"'), "must have line-by-line diff container");
+  assert.ok(html.includes('id="btn-diff-refresh"'), "must have diff refresh button");
+});

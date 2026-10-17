@@ -119,7 +119,19 @@
       </section>
 
       <!-- Antigravity Tab -->
-      <section id="tab-agent" class="tab-pane hidden flex flex-col h-full justify-between p-3 space-y-4 overflow-y-auto">
+      <section id="tab-agent" class="tab-pane hidden flex flex-col h-full justify-start p-3 space-y-3.5 overflow-y-auto">
+        <!-- Multi-Session Switcher Bar -->
+        <div id="session-switcher" class="p-3 bg-neutral-950 rounded-2xl border border-neutral-900 shadow-md">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] uppercase font-bold text-neutral-500 tracking-wider">Active Sessions</span>
+            <span id="session-count-badge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 font-semibold">1 Active</span>
+          </div>
+          <div id="session-pills-row" class="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
+            <!-- Dynamic session pills inserted here -->
+          </div>
+        </div>
+
+        <!-- Agent Status Card -->
         <div id="agent-status-card" class="p-4 bg-neutral-950 rounded-2xl border border-neutral-900 shadow-lg space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs uppercase font-bold text-neutral-500 tracking-wider">Agent Status</span>
@@ -139,7 +151,27 @@
           </div>
         </div>
 
-        <!-- Approval Prompt Card -->
+        <!-- Interactive Multi-Choice Question Card -->
+        <div id="question-card" class="hidden p-5 bg-neutral-900 rounded-3xl border border-amber-500/50 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <svg class="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span class="text-xs font-bold uppercase text-amber-400 tracking-wider">Antigravity Question</span>
+            </div>
+            <span id="question-mode-badge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-semibold uppercase">Single Choice</span>
+          </div>
+          <div id="question-list-container" class="space-y-4">
+            <!-- Dynamic questions & options inserted here -->
+          </div>
+          <div class="flex space-x-3 pt-2">
+            <button id="btn-question-decline" class="flex-1 py-3.5 bg-neutral-800 active:bg-neutral-700 text-neutral-300 font-bold rounded-2xl active:scale-95 transition-transform text-sm">Dismiss</button>
+            <button id="btn-question-submit" class="flex-2 py-3.5 bg-amber-400 active:bg-amber-500 text-black font-bold rounded-2xl active:scale-95 transition-transform shadow-lg text-sm">Submit Choice</button>
+          </div>
+        </div>
+
+        <!-- Standard Approval Prompt Card -->
         <div id="approval-card" class="hidden p-5 bg-neutral-900 rounded-3xl border border-amber-500/40 shadow-2xl space-y-4">
           <div class="flex items-center space-x-2">
             <svg class="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -153,6 +185,45 @@
           <div class="flex space-x-3 pt-2">
             <button id="btn-deny" class="flex-1 py-3.5 bg-red-600 active:bg-red-700 text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg text-sm">Deny</button>
             <button id="btn-allow" class="flex-1 py-3.5 bg-emerald-500 active:bg-emerald-600 text-black font-bold rounded-2xl active:scale-95 transition-transform shadow-lg text-sm">Allow</button>
+          </div>
+        </div>
+
+        <!-- Git Diff & File Changes Viewer Card -->
+        <div id="diff-card" class="p-4 bg-neutral-950 rounded-2xl border border-neutral-900 shadow-lg space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <svg class="w-4 h-4 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9v12"/><path d="M18 9a9 9 0 0 1-9 9"/>
+              </svg>
+              <span class="text-xs uppercase font-bold text-neutral-400 tracking-wider">Git Changes & Diffs</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div id="diff-stats" class="flex items-center space-x-1.5 text-xs font-mono font-semibold">
+                <span id="diff-add-total" class="text-emerald-400">+0</span>
+                <span id="diff-del-total" class="text-rose-400">-0</span>
+              </div>
+              <button id="btn-diff-refresh" class="p-1.5 text-neutral-400 hover:text-white rounded-lg active:scale-95 transition-transform" aria-label="Refresh Diffs">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="diff-files-list" class="space-y-2">
+            <!-- Changed files list rendered here -->
+          </div>
+          <div id="diff-empty-state" class="text-center py-4 text-xs text-neutral-500 italic">
+            Working directory is clean · No uncommitted changes
+          </div>
+          <!-- Collapsible Sheet / Unified Diff Viewer -->
+          <div id="diff-viewer" class="hidden mt-3 pt-3 border-t border-neutral-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span id="diff-viewer-filename" class="text-xs font-mono text-emerald-300 truncate max-w-[80%] font-semibold"></span>
+              <button id="btn-diff-close" class="text-xs text-neutral-400 hover:text-white px-2 py-1 rounded-lg bg-neutral-900 border border-neutral-800">Close</button>
+            </div>
+            <div id="diff-lines-container" class="overflow-x-auto max-h-64 rounded-xl bg-neutral-900/95 p-3 text-[11px] font-mono leading-relaxed space-y-0.5 border border-neutral-800 scrollbar-none">
+              <!-- Line-by-line diff content -->
+            </div>
           </div>
         </div>
       </section>

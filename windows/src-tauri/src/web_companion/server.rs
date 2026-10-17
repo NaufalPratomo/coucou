@@ -271,6 +271,276 @@ pub(crate) fn current_hook_agent_state() -> (String, Option<String>, Option<Stri
     (s.status.clone(), s.active_goal.clone(), s.current_tool.clone())
 }
 
+#[derive(Clone, Debug)]
+pub struct SessionRecord {
+    pub id: String,
+    pub agent: String,
+    pub title: String,
+    pub status: String,
+    pub active_goal: Option<String>,
+    pub current_tool: Option<String>,
+    pub cwd: Option<String>,
+    pub last_event_time: u64,
+}
+
+static SESSIONS: LazyLock<Mutex<std::collections::HashMap<String, SessionRecord>>> = LazyLock::new(|| {
+    Mutex::new(std::collections::HashMap::new())
+});
+
+pub fn record_desktop_sessions(desktop_sessions: &[crate::phone_link::hub::SessionIn]) {
+    let now = (now_ms()) as u64;
+    let mut store = SESSIONS.lock().unwrap();
+    for s in desktop_sessions {
+        if s.pill_id.is_empty() {
+            continue;
+        }
+        let title = s.project.clone().unwrap_or_else(|| {
+            if !s.agent.is_empty() { s.agent.clone() } else { s.pill_id.clone() }
+        });
+        let entry = store.entry(s.pill_id.clone()).or_insert_with(|| SessionRecord {
+            id: s.pill_id.clone(),
+            agent: s.agent.clone(),
+            title: title.clone(),
+            status: s.state.clone(),
+            active_goal: None,
+            current_tool: None,
+            cwd: None,
+            last_event_time: now,
+        });
+        entry.agent = s.agent.clone();
+        entry.title = title;
+        entry.status = s.state.clone();
+        if !s.status_text.is_empty() {
+            entry.current_tool = Some(s.status_text.clone());
+        }
+        if let Some(fl) = &s.final_line {
+            entry.active_goal = Some(fl.clone());
+        }
+        entry.last_event_time = now;
+    }
+}
+
+pub fn parse_questions(payload: &serde_json::Value) -> Option<Vec<QuestionItem>> {
+    let raw_questions = payload.get("questions")
+        .or_else(|| payload.get("tool_input").and_then(|t| t.get("questions")))
+        .or_else(|| payload.get("toolArgs").and_then(|t| t.get("questions")))
+        .or_else(|| payload.get("toolCall").and_then(|t| t.get("args")).and_then(|a| a.get("questions")));
+
+    let arr = raw_questions.and_then(|v| v.as_array())?;
+    if arr.is_empty() {
+        return None;
+    }
+
+    let mut items = Vec::new();
+    for q in arr {
+        let question_text = q.get("question")
+            .or_else(|| q.get("text"))
+            .or_else(|| q.get("title"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if question_text.is_empty() {
+            continue;
+        }
+
+        let multi_select = q.get("multiSelect")
+            .or_else(|| q.get("is_multi_select"))
+            .or_else(|| q.get("isMultiSelect"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let mut options = Vec::new();
+        if let Some(opts) = q.get("options").and_then(|v| v.as_array()) {
+            for opt in opts {
+                if let Some(s) = opt.as_str() {
+                    let trim = s.trim().to_string();
+                    if !trim.is_empty() {
+                        options.push(QuestionOption {
+                            label: trim,
+                            description: None,
+                        });
+                    }
+                } else if let Some(obj) = opt.as_object() {
+                    let label = obj.get("label")
+                        .or_else(|| obj.get("text"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    let desc = obj.get("description")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty());
+                    if !label.is_empty() {
+                        options.push(QuestionOption {
+                            label,
+                            description: desc,
+                        });
+                    }
+                }
+            }
+        }
+
+        if !options.is_empty() {
+            items.push(QuestionItem {
+                question: question_text,
+                options,
+                multi_select,
+            });
+        }
+    }
+
+    if items.is_empty() {
+        None
+    } else {
+        Some(items)
+    }
+}
+
+pub fn parse_unified_diff(raw_diff: &str) -> Vec<CompanionFileDiff> {
+    let mut files: Vec<CompanionFileDiff> = Vec::new();
+    let mut current_file: Option<CompanionFileDiff> = None;
+
+    for line in raw_diff.lines() {
+        if line.starts_with("diff --git ") {
+            if let Some(f) = current_file.take() {
+                files.push(f);
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            let b_path = parts.get(3).and_then(|p| p.strip_prefix("b/")).unwrap_or("unknown");
+            let filename = b_path.split('/').last().unwrap_or(b_path).to_string();
+            current_file = Some(CompanionFileDiff {
+                path: b_path.to_string(),
+                filename,
+                status: "modified".to_string(),
+                additions: 0,
+                deletions: 0,
+                lines: Vec::new(),
+            });
+        } else if let Some(ref mut f) = current_file {
+            if line.starts_with("new file mode") {
+                f.status = "added".to_string();
+            } else if line.starts_with("deleted file mode") {
+                f.status = "deleted".to_string();
+            } else if line.starts_with("@@ ") {
+                f.lines.push(DiffLine {
+                    kind: "@".to_string(),
+                    text: line.to_string(),
+                });
+            } else if line.starts_with('+') && !line.starts_with("+++") {
+                f.additions += 1;
+                f.lines.push(DiffLine {
+                    kind: "+".to_string(),
+                    text: line[1..].to_string(),
+                });
+            } else if line.starts_with('-') && !line.starts_with("---") {
+                f.deletions += 1;
+                f.lines.push(DiffLine {
+                    kind: "-".to_string(),
+                    text: line[1..].to_string(),
+                });
+            } else if line.starts_with(' ') {
+                f.lines.push(DiffLine {
+                    kind: " ".to_string(),
+                    text: line[1..].to_string(),
+                });
+            }
+        }
+    }
+
+    if let Some(f) = current_file {
+        files.push(f);
+    }
+
+    files
+}
+
+pub fn get_git_diffs(repo_dir: Option<&str>) -> Vec<CompanionFileDiff> {
+    let target_dir = repo_dir
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            let active_sid = LAST_ACTIVE_SESSION.lock().unwrap().clone();
+            if let Some(sid) = active_sid {
+                let sessions = SESSIONS.lock().unwrap();
+                if let Some(s) = sessions.get(&sid) {
+                    if let Some(cwd) = &s.cwd {
+                        return Some(std::path::PathBuf::from(cwd));
+                    }
+                }
+            }
+            None
+        })
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(&["diff", "-U3", "HEAD"]).current_dir(&target_dir);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    let output = match cmd.output() {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).to_string(),
+        Err(_) => String::new(),
+    };
+
+    let mut diffs = parse_unified_diff(&output);
+
+    let mut status_cmd = std::process::Command::new("git");
+    status_cmd.args(&["status", "--porcelain=v1"]).current_dir(&target_dir);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        status_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    if let Ok(st_out) = status_cmd.output() {
+        let st_text = String::from_utf8_lossy(&st_out.stdout);
+        for line in st_text.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("?? ") {
+                let path = trimmed[3..].trim().to_string();
+                if !diffs.iter().any(|d| d.path == path) {
+                    let filename = path.split('/').last().unwrap_or(&path).to_string();
+                    diffs.push(CompanionFileDiff {
+                        path: path.clone(),
+                        filename,
+                        status: "added".to_string(),
+                        additions: 1,
+                        deletions: 0,
+                        lines: vec![
+                            DiffLine {
+                                kind: "@".to_string(),
+                                text: "@@ untracked @@".to_string(),
+                            },
+                            DiffLine {
+                                kind: "+".to_string(),
+                                text: format!("[Untracked new file: {path}]"),
+                            },
+                        ],
+                    });
+                }
+            }
+        }
+    }
+
+    diffs
+}
+
+pub fn get_diff_summary(repo_dir: Option<&str>) -> Vec<DiffSummaryFile> {
+    let diffs = get_git_diffs(repo_dir);
+    diffs.into_iter().map(|d| DiffSummaryFile {
+        path: d.path,
+        filename: d.filename,
+        status: d.status,
+        additions: d.additions,
+        deletions: d.deletions,
+    }).collect()
+}
+
 static LAST_ACTIVE_SESSION: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 static WS_BROADCAST: LazyLock<tokio::sync::broadcast::Sender<OutboundMessage>> = LazyLock::new(|| tokio::sync::broadcast::channel(64).0);
 
@@ -337,8 +607,70 @@ pub fn record_hook_event(event: &str, payload: &serde_json::Value) {
     let mut state = HOOK_AGENT_STATE.lock().unwrap();
     state.last_event_time = now;
 
-    if let Some(session) = payload.get("session_id").and_then(|v| v.as_str()) {
-        *LAST_ACTIVE_SESSION.lock().unwrap() = Some(session.to_string());
+    let session_id = payload.get("session_id")
+        .or_else(|| payload.get("conversationId"))
+        .or_else(|| payload.get("sessionId"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if !session_id.is_empty() {
+        *LAST_ACTIVE_SESSION.lock().unwrap() = Some(session_id.clone());
+        let agent_name = payload.get("coucou_agent")
+            .or_else(|| payload.get("agent"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Antigravity")
+            .to_string();
+        let cwd = payload.get("cwd")
+            .or_else(|| payload.get("workdir"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let title = cwd.as_deref().and_then(|c| {
+            let clean = c.replace('\\', "/");
+            clean.split('/').filter(|s| !s.is_empty()).last().map(|s| s.to_string())
+        }).unwrap_or_else(|| agent_name.clone());
+
+        let mut store = SESSIONS.lock().unwrap();
+        let record = store.entry(session_id.clone()).or_insert_with(|| SessionRecord {
+            id: session_id.clone(),
+            agent: agent_name.clone(),
+            title: title.clone(),
+            status: "running".to_string(),
+            active_goal: None,
+            current_tool: None,
+            cwd: cwd.clone(),
+            last_event_time: now,
+        });
+        record.agent = agent_name;
+        record.title = title;
+        record.last_event_time = now;
+        if cwd.is_some() {
+            record.cwd = cwd;
+        }
+
+        match event {
+            "PreToolUse" | "pre_tool_use" => {
+                record.status = "running".to_string();
+                let tool = payload.get("tool").or_else(|| payload.get("tool_name")).and_then(|v| v.as_str()).unwrap_or("Tool");
+                record.current_tool = Some(format_tool_activity(tool, payload));
+            }
+            "UserPromptSubmit" | "UserPrompt" | "PreInvocation" | "user_prompt_submit" => {
+                record.status = "running".to_string();
+                let prompt = payload.get("prompt").or_else(|| payload.get("message")).and_then(|v| v.as_str()).map(|s| s.to_string());
+                if let Some(p) = prompt {
+                    record.active_goal = Some(p);
+                }
+                record.current_tool = Some("Thinking & planning...".to_string());
+            }
+            "Stop" | "stop" | "AfterAgent" => {
+                record.status = "idle".to_string();
+                record.current_tool = Some("Task complete".to_string());
+            }
+            "SessionEnd" | "session_end" => {
+                record.status = "idle".to_string();
+            }
+            _ => {}
+        }
     }
 
     match event {
@@ -398,12 +730,14 @@ pub fn record_permission_request(id: &str, payload: &serde_json::Value) {
     let tool = payload.get("tool").or_else(|| payload.get("tool_name")).and_then(|v| v.as_str()).map(|s| s.to_string());
     let command = payload.get("command").or_else(|| payload.get("cmd")).and_then(|v| v.as_str()).map(|s| s.to_string());
     let prompt = payload.get("prompt").or_else(|| payload.get("message")).and_then(|v| v.as_str()).unwrap_or("Action approval required").to_string();
+    let questions = parse_questions(payload);
 
     let prompt_obj = ApprovalPrompt {
         id: id.to_string(),
         prompt,
         tool,
         command,
+        questions,
     };
     state.pending_request = Some(prompt_obj.clone());
     broadcast_message(OutboundMessage::AgentPrompt(prompt_obj));
@@ -462,12 +796,22 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
         !lock.is_empty()
     }).unwrap_or(false);
 
+    let active_cwd = {
+        let active_sid = LAST_ACTIVE_SESSION.lock().unwrap().clone();
+        active_sid.and_then(|sid| {
+            let sessions = SESSIONS.lock().unwrap();
+            sessions.get(&sid).and_then(|s| s.cwd.clone())
+        })
+    };
+    let diff_summary = get_diff_summary(active_cwd.as_deref());
+
     let agent = if hook_state.pending_request.is_some() || has_pipe_pending {
         Some(AgentState {
             status: "Waiting for Confirmation".to_string(),
             active_goal: hook_state.active_goal,
             current_tool: hook_state.current_tool,
             pending_request: hook_state.pending_request,
+            diff_summary,
         })
     } else if hook_state.status != "idle" && now.saturating_sub(hook_state.last_event_time) < 120_000 {
         Some(AgentState {
@@ -475,6 +819,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
             active_goal: hook_state.active_goal,
             current_tool: hook_state.current_tool,
             pending_request: None,
+            diff_summary,
         })
     } else {
         Some(AgentState {
@@ -482,13 +827,50 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
             active_goal: hook_state.active_goal,
             current_tool: hook_state.current_tool.or_else(|| Some("Standing by".to_string())),
             pending_request: None,
+            diff_summary,
         })
     };
+
+    let active_sid = LAST_ACTIVE_SESSION.lock().unwrap().clone();
+    let mut sessions_list: Vec<SessionSummary> = {
+        let sessions = SESSIONS.lock().unwrap();
+        let mut list: Vec<SessionSummary> = sessions.values().map(|s| {
+            let is_act = active_sid.as_ref().map(|id| id == &s.id).unwrap_or(false);
+            SessionSummary {
+                id: s.id.clone(),
+                agent: s.agent.clone(),
+                title: s.title.clone(),
+                status: s.status.clone(),
+                active_goal: s.active_goal.clone(),
+                current_tool: s.current_tool.clone(),
+                is_active: is_act,
+            }
+        }).collect();
+        list.sort_by(|a, b| b.is_active.cmp(&a.is_active));
+        list
+    };
+
+    if sessions_list.is_empty() {
+        sessions_list.push(SessionSummary {
+            id: "antigravity-main".to_string(),
+            agent: "Antigravity".to_string(),
+            title: "coucou-fork".to_string(),
+            status: hook_state.status.clone(),
+            active_goal: hook_state.active_goal.clone(),
+            current_tool: hook_state.current_tool.clone(),
+            is_active: true,
+        });
+    } else if !sessions_list.iter().any(|s| s.is_active) {
+        if let Some(first) = sessions_list.first_mut() {
+            first.is_active = true;
+        }
+    }
 
     StateSnapshot {
         media,
         agent,
         system,
+        sessions: sessions_list,
     }
 }
 
@@ -642,6 +1024,46 @@ pub async fn handle_ws_session(
                             let snap = build_snapshot(&app_clone).await;
                             let _ = out_tx_chat.send(OutboundMessage::FullSync(snap)).await;
                         });
+                    }
+                    InboundMessage::AgentAnswer { request_id, answers } => {
+                        log::line(format!("web companion: answered question id={request_id}"));
+                        crate::recap::forget_request(&app, &request_id);
+                        pipe::answer_question(&app, &request_id, &answers);
+                        use tauri::Emitter;
+                        let _ = app.emit_to(crate::island::WINDOW_LABEL, "phone-link-decided", request_id.clone());
+                        clear_permission_request(&request_id);
+
+                        let app_clone = app.clone();
+                        let out_tx_ans = out_tx.clone();
+                        tauri::async_runtime::spawn(async move {
+                            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+                            let snap = build_snapshot(&app_clone).await;
+                            let _ = out_tx_ans.send(OutboundMessage::FullSync(snap)).await;
+                        });
+                    }
+                    InboundMessage::SessionSelect { session_id } => {
+                        *LAST_ACTIVE_SESSION.lock().unwrap() = Some(session_id.clone());
+                        #[cfg(windows)]
+                        {
+                            if let Some(owners) = crate::session_window::lookup(&session_id) {
+                                let _ = crate::platform::focus_session_window(&owners, "");
+                            }
+                        }
+                        let app_clone = app.clone();
+                        let out_tx_sel = out_tx.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let snap = build_snapshot(&app_clone).await;
+                            let _ = out_tx_sel.send(OutboundMessage::FullSync(snap)).await;
+                        });
+                    }
+                    InboundMessage::DiffGet { session_id } => {
+                        let sid = session_id.or_else(|| LAST_ACTIVE_SESSION.lock().unwrap().clone());
+                        let cwd_opt = sid.as_ref().and_then(|s| {
+                            let store = SESSIONS.lock().unwrap();
+                            store.get(s).and_then(|r| r.cwd.clone())
+                        });
+                        let files = get_git_diffs(cwd_opt.as_deref());
+                        let _ = out_tx.send(OutboundMessage::DiffData { session_id: sid, files }).await;
                     }
                     InboundMessage::Ping => {
                         let _ = out_tx.send(OutboundMessage::Pong).await;

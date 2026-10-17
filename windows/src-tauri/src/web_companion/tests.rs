@@ -346,5 +346,113 @@ fn test_record_hook_event_lifecycle() {
     assert_eq!(tool3, Some("Task complete".to_string()));
 }
 
+#[test]
+fn test_parse_agent_answer_message() {
+    let raw = r#"{"type":"agent:answer","payload":{"requestId":"req-q1","answers":{"Which option?":"Option A"}}}"#;
+    let msg: InboundMessage = serde_json::from_str(raw).expect("must parse agent answer");
+    match msg {
+        InboundMessage::AgentAnswer { request_id, answers } => {
+            assert_eq!(request_id, "req-q1");
+            assert_eq!(answers.get("Which option?").and_then(|v| v.as_str()), Some("Option A"));
+        }
+        _ => panic!("wrong message type"),
+    }
+}
+
+#[test]
+fn test_parse_session_select_message() {
+    let raw = r#"{"type":"session:select","payload":{"sessionId":"sess-999"}}"#;
+    let msg: InboundMessage = serde_json::from_str(raw).expect("must parse session select");
+    match msg {
+        InboundMessage::SessionSelect { session_id } => {
+            assert_eq!(session_id, "sess-999");
+        }
+        _ => panic!("wrong message type"),
+    }
+}
+
+#[test]
+fn test_parse_diff_get_message() {
+    let raw = r#"{"type":"diff:get","payload":{"sessionId":"sess-123"}}"#;
+    let msg: InboundMessage = serde_json::from_str(raw).expect("must parse diff get");
+    match msg {
+        InboundMessage::DiffGet { session_id } => {
+            assert_eq!(session_id, Some("sess-123".to_string()));
+        }
+        _ => panic!("wrong message type"),
+    }
+}
+
+#[test]
+fn test_parse_questions_claude_and_antigravity_format() {
+    // Claude Code style: array of objects with label
+    let claude_payload = serde_json::json!({
+        "questions": [
+            {
+                "question": "Which branch would you like to merge?",
+                "options": [
+                    { "label": "main", "description": "Production branch" },
+                    { "label": "develop", "description": "Development branch" }
+                ],
+                "multiSelect": false
+            }
+        ]
+    });
+    let q1 = super::server::parse_questions(&claude_payload).expect("must parse claude questions");
+    assert_eq!(q1.len(), 1);
+    assert_eq!(q1[0].question, "Which branch would you like to merge?");
+    assert!(!q1[0].multi_select);
+    assert_eq!(q1[0].options.len(), 2);
+    assert_eq!(q1[0].options[0].label, "main");
+    assert_eq!(q1[0].options[0].description, Some("Production branch".to_string()));
+
+    // Antigravity style: array of strings with is_multi_select
+    let antigravity_payload = serde_json::json!({
+        "tool": "ask_question",
+        "tool_input": {
+            "questions": [
+                {
+                    "question": "Select target platforms",
+                    "options": ["Windows", "macOS", "Linux"],
+                    "is_multi_select": true
+                }
+            ]
+        }
+    });
+    let q2 = super::server::parse_questions(&antigravity_payload).expect("must parse antigravity questions");
+    assert_eq!(q2.len(), 1);
+    assert_eq!(q2[0].question, "Select target platforms");
+    assert!(q2[0].multi_select);
+    assert_eq!(q2[0].options.len(), 3);
+    assert_eq!(q2[0].options[0].label, "Windows");
+    assert_eq!(q2[0].options[1].label, "macOS");
+    assert_eq!(q2[0].options[2].label, "Linux");
+}
+
+#[test]
+fn test_parse_unified_diff() {
+    let sample_diff = r#"diff --git a/src/main.rs b/src/main.rs
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -10,3 +10,4 @@
+ fn main() {
+-    println!("hello");
++    println!("hello world");
++    println!("new line");
+ }
+"#;
+    let diffs = super::server::parse_unified_diff(sample_diff);
+    assert_eq!(diffs.len(), 1);
+    let d = &diffs[0];
+    assert_eq!(d.path, "src/main.rs");
+    assert_eq!(d.filename, "main.rs");
+    assert_eq!(d.status, "modified");
+    assert_eq!(d.additions, 2);
+    assert_eq!(d.deletions, 1);
+    assert!(d.lines.iter().any(|l| l.kind == "@"));
+    assert!(d.lines.iter().any(|l| l.kind == "+" && l.text.contains("hello world")));
+    assert!(d.lines.iter().any(|l| l.kind == "-" && l.text.contains("hello")));
+}
+
 
 

@@ -16,11 +16,55 @@ export interface MediaState {
   lyrics: LyricLine[];
 }
 
+export interface QuestionOption {
+  label: string;
+  description?: string;
+}
+
+export interface QuestionItem {
+  question: string;
+  options: QuestionOption[];
+  multiSelect: boolean;
+}
+
 export interface ApprovalPrompt {
   id: string;
   prompt: string;
   tool?: string;
   command?: string;
+  questions?: QuestionItem[];
+}
+
+export interface DiffLine {
+  kind: string; // "+" | "-" | " " | "@"
+  text: string;
+}
+
+export interface CompanionFileDiff {
+  path: string;
+  filename: string;
+  status: string; // "modified" | "added" | "deleted"
+  additions: number;
+  deletions: number;
+  lines: DiffLine[];
+}
+
+export interface DiffSummaryFile {
+  path: string;
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+}
+
+export interface SessionSummary {
+  id: string;
+  agent: string;
+  title: string;
+  status: string;
+  activeGoal?: string;
+  currentTool?: string;
+  isActive: boolean;
 }
 
 export interface AgentState {
@@ -28,6 +72,7 @@ export interface AgentState {
   activeGoal?: string;
   currentTool?: string;
   pendingRequest?: ApprovalPrompt;
+  diffSummary?: DiffSummaryFile[];
 }
 
 export interface StateSnapshot {
@@ -37,6 +82,7 @@ export interface StateSnapshot {
     batteryPercent: number;
     isCharging: boolean;
   };
+  sessions?: SessionSummary[];
 }
 
 export class CompanionClient {
@@ -48,7 +94,8 @@ export class CompanionClient {
     private onTick: (posMs: number) => void,
     private onPrompt: (prompt: ApprovalPrompt) => void,
     private onStatusChange: (connected: boolean) => void,
-    private onChatReply?: (reply: { text: string; isUser: boolean }) => void
+    private onChatReply?: (reply: { text: string; isUser: boolean }) => void,
+    private onDiffData?: (data: { sessionId?: string; files: CompanionFileDiff[] }) => void
   ) {
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
@@ -141,6 +188,8 @@ export class CompanionClient {
           this.onTick(msg.payload.positionMs);
         } else if (msg.type === "agent:request") {
           this.onPrompt(msg.payload);
+        } else if (msg.type === "diff:data") {
+          this.onDiffData?.(msg.payload);
         } else if (msg.type === "chat:reply") {
           this.onChatReply?.(msg.payload);
         }
@@ -191,6 +240,24 @@ export class CompanionClient {
   public sendDecision(requestId: string, allow: boolean): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "agent:decision", payload: { requestId, allow } }));
+    }
+  }
+
+  public sendAnswer(requestId: string, answers: Record<string, string | string[]>): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "agent:answer", payload: { requestId, answers } }));
+    }
+  }
+
+  public selectSession(sessionId: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "session:select", payload: { sessionId } }));
+    }
+  }
+
+  public requestDiff(sessionId?: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "diff:get", payload: { sessionId } }));
     }
   }
 
