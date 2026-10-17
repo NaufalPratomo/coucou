@@ -44,10 +44,13 @@ export function setupAntigravityCard(client: CompanionClient) {
   const diffLinesContainer = document.getElementById("diff-lines-container")!;
 
   let currentRequestId: string | null = null;
+  let activeQuestionsPromptId: string | null = null;
   let activeQuestionsPrompt: ApprovalPrompt | null = null;
   const userAnswers = new Map<string, string[]>(); // questionText -> selected option labels
   let cachedFullDiffs: CompanionFileDiff[] = [];
   let selectedFileDiff: string | null = null;
+  let lastRenderedSessionKey = "";
+  let lastRenderedDiffKey = "";
 
   const triggerHaptic = (pattern: number | number[]) => {
     try {
@@ -65,6 +68,7 @@ export function setupAntigravityCard(client: CompanionClient) {
       approvalCard.classList.add("hidden");
       questionCard.classList.add("hidden");
       currentRequestId = null;
+      activeQuestionsPromptId = null;
       activeQuestionsPrompt = null;
     }
   };
@@ -76,6 +80,7 @@ export function setupAntigravityCard(client: CompanionClient) {
       approvalCard.classList.add("hidden");
       questionCard.classList.add("hidden");
       currentRequestId = null;
+      activeQuestionsPromptId = null;
       activeQuestionsPrompt = null;
     }
   };
@@ -89,6 +94,7 @@ export function setupAntigravityCard(client: CompanionClient) {
         questionCard.classList.add("hidden");
         approvalCard.classList.add("hidden");
         currentRequestId = null;
+        activeQuestionsPromptId = null;
         activeQuestionsPrompt = null;
       }
     };
@@ -115,6 +121,14 @@ export function setupAntigravityCard(client: CompanionClient) {
 
       if (!allAnswered) {
         triggerHaptic([40, 40]);
+        activeQuestionsPrompt.questions.forEach((q, idx) => {
+          const selected = userAnswers.get(q.question) || [];
+          const qBox = questionListContainer.children[idx] as HTMLElement | undefined;
+          if (qBox && selected.length === 0) {
+            qBox.classList.add("question-required-highlight");
+            setTimeout(() => qBox.classList.remove("question-required-highlight"), 1600);
+          }
+        });
         return;
       }
 
@@ -123,6 +137,7 @@ export function setupAntigravityCard(client: CompanionClient) {
       questionCard.classList.add("hidden");
       approvalCard.classList.add("hidden");
       currentRequestId = null;
+      activeQuestionsPromptId = null;
       activeQuestionsPrompt = null;
     };
   }
@@ -165,6 +180,12 @@ export function setupAntigravityCard(client: CompanionClient) {
         sessionCountBadge.textContent = `${items.length} Active`;
       }
 
+      const sessionKey = items.map((s) => `${s.id}:${s.title}:${s.status}:${s.isActive}`).join("|");
+      if (sessionKey === lastRenderedSessionKey) {
+        return;
+      }
+      lastRenderedSessionKey = sessionKey;
+
       sessionPillsRow.innerHTML = "";
 
       for (const s of items) {
@@ -192,6 +213,7 @@ export function setupAntigravityCard(client: CompanionClient) {
         pill.onclick = () => {
           triggerHaptic(25);
           client.selectSession(s.id);
+          client.requestDiff(s.id);
           document.querySelectorAll(".session-pill").forEach((p) => p.classList.remove("active"));
           pill.classList.add("active");
         };
@@ -248,6 +270,7 @@ export function setupAntigravityCard(client: CompanionClient) {
         approvalCard.classList.add("hidden");
         questionCard.classList.add("hidden");
         currentRequestId = null;
+        activeQuestionsPromptId = null;
         activeQuestionsPrompt = null;
       }
 
@@ -263,8 +286,15 @@ export function setupAntigravityCard(client: CompanionClient) {
         diffFilesList.innerHTML = "";
         if (diffAddTotal) diffAddTotal.textContent = "+0";
         if (diffDelTotal) diffDelTotal.textContent = "-0";
+        lastRenderedDiffKey = "";
         return;
       }
+
+      const diffKey = diffSummary.map((f) => `${f.path}:${f.status}:${f.additions}:${f.deletions}:${f.path === selectedFileDiff}`).join("|");
+      if (diffKey === lastRenderedDiffKey) {
+        return;
+      }
+      lastRenderedDiffKey = diffKey;
 
       if (diffEmptyState) diffEmptyState.classList.add("hidden");
       diffFilesList.innerHTML = "";
@@ -401,10 +431,14 @@ export function setupAntigravityCard(client: CompanionClient) {
     },
 
     prompt(req: ApprovalPrompt) {
-      currentRequestId = req.id;
-
       // ── Scenario A: Question Prompt (AskUserQuestion / ask_question) ──────
       if (req.questions && req.questions.length > 0) {
+        if (currentRequestId === req.id && activeQuestionsPromptId === req.id) {
+          return;
+        }
+
+        currentRequestId = req.id;
+        activeQuestionsPromptId = req.id;
         approvalCard.classList.add("hidden");
         activeQuestionsPrompt = req;
         userAnswers.clear();
@@ -500,6 +534,12 @@ export function setupAntigravityCard(client: CompanionClient) {
       }
 
       // ── Scenario B: Regular Approval Prompt (Allow / Deny) ────────────────
+      if (currentRequestId === req.id && activeQuestionsPromptId === null && !approvalCard.classList.contains("hidden")) {
+        return;
+      }
+      currentRequestId = req.id;
+      activeQuestionsPromptId = null;
+      activeQuestionsPrompt = null;
       questionCard.classList.add("hidden");
       promptText.textContent = req.prompt || (req.command ? `Run: ${req.command}` : "Confirmation needed");
       approvalCard.classList.remove("hidden");

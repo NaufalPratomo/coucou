@@ -398,6 +398,12 @@ pub fn parse_questions(payload: &serde_json::Value) -> Option<Vec<QuestionItem>>
     }
 }
 
+fn clean_diff_path(raw: &str) -> String {
+    let unquoted = raw.trim().trim_matches('"');
+    let normalized = unquoted.replace('\\', "/");
+    normalized.strip_prefix("a/").or_else(|| normalized.strip_prefix("b/")).unwrap_or(&normalized).to_string()
+}
+
 pub fn parse_unified_diff(raw_diff: &str) -> Vec<CompanionFileDiff> {
     let mut files: Vec<CompanionFileDiff> = Vec::new();
     let mut current_file: Option<CompanionFileDiff> = None;
@@ -407,11 +413,18 @@ pub fn parse_unified_diff(raw_diff: &str) -> Vec<CompanionFileDiff> {
             if let Some(f) = current_file.take() {
                 files.push(f);
             }
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            let b_path = parts.get(3).and_then(|p| p.strip_prefix("b/")).unwrap_or("unknown");
-            let filename = b_path.split('/').last().unwrap_or(b_path).to_string();
+            let rest = &line[11..];
+            let initial_path = if let Some(idx) = rest.rfind(" b/") {
+                clean_diff_path(&rest[idx + 3..])
+            } else if let Some(idx) = rest.rfind("\" b/\"") {
+                clean_diff_path(&rest[idx + 5..])
+            } else {
+                let parts: Vec<&str> = rest.split_whitespace().collect();
+                clean_diff_path(parts.last().unwrap_or(&"unknown"))
+            };
+            let filename = initial_path.split('/').last().unwrap_or(&initial_path).to_string();
             current_file = Some(CompanionFileDiff {
-                path: b_path.to_string(),
+                path: initial_path,
                 filename,
                 status: "modified".to_string(),
                 additions: 0,
@@ -423,6 +436,22 @@ pub fn parse_unified_diff(raw_diff: &str) -> Vec<CompanionFileDiff> {
                 f.status = "added".to_string();
             } else if line.starts_with("deleted file mode") {
                 f.status = "deleted".to_string();
+            } else if line.starts_with("--- ") {
+                if f.status == "deleted" && !line.starts_with("--- /dev/null") {
+                    let p = clean_diff_path(&line[4..]);
+                    if !p.is_empty() && p != "/dev/null" {
+                        f.path = p.clone();
+                        f.filename = p.split('/').last().unwrap_or(&p).to_string();
+                    }
+                }
+            } else if line.starts_with("+++ ") {
+                if !line.starts_with("+++ /dev/null") {
+                    let p = clean_diff_path(&line[4..]);
+                    if !p.is_empty() && p != "/dev/null" {
+                        f.path = p.clone();
+                        f.filename = p.split('/').last().unwrap_or(&p).to_string();
+                    }
+                }
             } else if line.starts_with("@@ ") {
                 f.lines.push(DiffLine {
                     kind: "@".to_string(),
@@ -469,6 +498,12 @@ pub fn get_git_diffs(repo_dir: Option<&str>) -> Vec<CompanionFileDiff> {
                     }
                 }
             }
+            let sessions = SESSIONS.lock().unwrap();
+            for s in sessions.values() {
+                if let Some(cwd) = &s.cwd {
+                    return Some(std::path::PathBuf::from(cwd));
+                }
+            }
             None
         })
         .or_else(|| std::env::current_dir().ok())
@@ -502,7 +537,8 @@ pub fn get_git_diffs(repo_dir: Option<&str>) -> Vec<CompanionFileDiff> {
         for line in st_text.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("?? ") {
-                let path = trimmed[3..].trim().to_string();
+                let raw_path = trimmed[3..].trim().trim_matches('"');
+                let path = raw_path.replace('\\', "/");
                 if !diffs.iter().any(|d| d.path == path) {
                     let filename = path.split('/').last().unwrap_or(&path).to_string();
                     diffs.push(CompanionFileDiff {
@@ -530,15 +566,45 @@ pub fn get_git_diffs(repo_dir: Option<&str>) -> Vec<CompanionFileDiff> {
     diffs
 }
 
+struct DiffSummaryCache {
+    repo_dir: String,
+    cached_at: u64,
+    summary: Vec<DiffSummaryFile>,
+}
+
+static DIFF_SUMMARY_CACHE: LazyLock<Mutex<Option<DiffSummaryCache>>> = LazyLock::new(|| Mutex::new(None));
+
 pub fn get_diff_summary(repo_dir: Option<&str>) -> Vec<DiffSummaryFile> {
+    let key = repo_dir.unwrap_or("").to_string();
+    let now = (now_ms()) as u64;
+    {
+        let cache = DIFF_SUMMARY_CACHE.lock().unwrap();
+        if let Some(ref c) = *cache {
+            if c.repo_dir == key && now.saturating_sub(c.cached_at) < 3000 {
+                return c.summary.clone();
+            }
+        }
+    }
+
     let diffs = get_git_diffs(repo_dir);
-    diffs.into_iter().map(|d| DiffSummaryFile {
+    let summary: Vec<DiffSummaryFile> = diffs.into_iter().map(|d| DiffSummaryFile {
         path: d.path,
         filename: d.filename,
         status: d.status,
         additions: d.additions,
         deletions: d.deletions,
-    }).collect()
+    }).collect();
+
+    {
+        let mut cache = DIFF_SUMMARY_CACHE.lock().unwrap();
+        *cache = Some(DiffSummaryCache {
+            repo_dir: key,
+            cached_at: now,
+            summary: summary.clone(),
+        });
+    }
+
+    summary
 }
 
 static LAST_ACTIVE_SESSION: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
@@ -796,21 +862,46 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
         !lock.is_empty()
     }).unwrap_or(false);
 
-    let active_cwd = {
-        let active_sid = LAST_ACTIVE_SESSION.lock().unwrap().clone();
-        active_sid.and_then(|sid| {
-            let sessions = SESSIONS.lock().unwrap();
-            sessions.get(&sid).and_then(|s| s.cwd.clone())
-        })
+    let active_sid = LAST_ACTIVE_SESSION.lock().unwrap().clone();
+    let (selected_status, selected_goal, selected_tool, active_cwd) = {
+        let sessions = SESSIONS.lock().unwrap();
+        let s_opt = active_sid.as_ref().and_then(|sid| sessions.get(sid)).or_else(|| {
+            sessions.values().next()
+        });
+        if let Some(s) = s_opt {
+            (Some(s.status.clone()), s.active_goal.clone(), s.current_tool.clone(), s.cwd.clone())
+        } else {
+            (None, None, None, None)
+        }
     };
     let diff_summary = get_diff_summary(active_cwd.as_deref());
 
     let agent = if hook_state.pending_request.is_some() || has_pipe_pending {
         Some(AgentState {
             status: "Waiting for Confirmation".to_string(),
-            active_goal: hook_state.active_goal.clone(),
-            current_tool: hook_state.current_tool.clone(),
+            active_goal: selected_goal.or_else(|| hook_state.active_goal.clone()),
+            current_tool: selected_tool.or_else(|| hook_state.current_tool.clone()),
             pending_request: hook_state.pending_request,
+            diff_summary,
+        })
+    } else if let Some(ref st) = selected_status {
+        let st_lower = st.to_lowercase();
+        let status_str = if st_lower == "thinking" {
+            "Thinking".to_string()
+        } else if st_lower == "running" || st_lower == "busy" {
+            "Running".to_string()
+        } else if st_lower.contains("waiting") || st_lower.contains("confirmation") {
+            "Waiting for Confirmation".to_string()
+        } else if st_lower == "idle" {
+            "Idle".to_string()
+        } else {
+            st.clone()
+        };
+        Some(AgentState {
+            status: status_str,
+            active_goal: selected_goal.or_else(|| hook_state.active_goal.clone()),
+            current_tool: selected_tool.or_else(|| hook_state.current_tool.clone()).or_else(|| Some("Standing by".to_string())),
+            pending_request: None,
             diff_summary,
         })
     } else if hook_state.status != "idle" && now.saturating_sub(hook_state.last_event_time) < 120_000 {

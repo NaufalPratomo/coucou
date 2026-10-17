@@ -80,3 +80,23 @@ test("companion.html has multi-session switcher, question card, and git diff vie
   assert.ok(html.includes('id="diff-lines-container"'), "must have line-by-line diff container");
   assert.ok(html.includes('id="btn-diff-refresh"'), "must have diff refresh button");
 });
+
+test("companion style.css defines essential styles and zero emoji", () => {
+  const css = readFileSync(resolve(process.cwd(), "src/companion/style.css"), "utf8");
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+  assert.strictEqual(css.match(emojiRegex), null, "style.css must not contain unicode emoji");
+
+  assert.ok(css.includes(".session-pill"), "must style session pills");
+  assert.ok(css.includes(".question-option-card"), "must style question option cards");
+  assert.ok(css.includes(".question-required-highlight"), "must style question validation highlight");
+  assert.ok(css.includes(".diff-line-add"), "must style diff addition lines");
+  assert.ok(css.includes(".diff-line-del"), "must style diff deletion lines");
+  assert.ok(css.includes(".diff-line-hunk"), "must style diff hunk lines");
+});
+
+test("companion ws.ts exports answer, session selection, and diff request APIs", () => {
+  const wsSource = readFileSync(resolve(process.cwd(), "src/companion/ws.ts"), "utf8");
+  assert.ok(wsSource.includes("sendAnswer("), "ws.ts must have sendAnswer");
+  assert.ok(wsSource.includes("selectSession("), "ws.ts must have selectSession");
+  assert.ok(wsSource.includes("requestDiff("), "ws.ts must have requestDiff");
+});

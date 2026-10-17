@@ -454,5 +454,65 @@ fn test_parse_unified_diff() {
     assert!(d.lines.iter().any(|l| l.kind == "-" && l.text.contains("hello")));
 }
 
+#[test]
+fn test_parse_unified_diff_with_spaces_and_quotes() {
+    let diff_spaces = r#"diff --git a/folder with space/my file.txt b/folder with space/my file.txt
+--- a/folder with space/my file.txt
++++ b/folder with space/my file.txt
+@@ -1,1 +1,2 @@
+ ctx
++added line
+"#;
+    let diffs = super::server::parse_unified_diff(diff_spaces);
+    assert_eq!(diffs.len(), 1);
+    assert_eq!(diffs[0].path, "folder with space/my file.txt");
+    assert_eq!(diffs[0].filename, "my file.txt");
+    assert_eq!(diffs[0].additions, 1);
+    assert_eq!(diffs[0].deletions, 0);
+
+    let diff_quoted = r#"diff --git "a/my doc.md" "b/my doc.md"
+--- "a/my doc.md"
++++ "b/my doc.md"
+@@ -1,1 +1,1 @@
+-old doc
++new doc
+"#;
+    let diffs_q = super::server::parse_unified_diff(diff_quoted);
+    assert_eq!(diffs_q.len(), 1);
+    assert_eq!(diffs_q[0].path, "my doc.md");
+    assert_eq!(diffs_q[0].filename, "my doc.md");
+    assert_eq!(diffs_q[0].additions, 1);
+    assert_eq!(diffs_q[0].deletions, 1);
+}
+
+#[test]
+fn test_parse_unified_diff_new_and_deleted_files() {
+    let diff_new = r#"diff --git a/new_script.js b/new_script.js
+new file mode 100644
+--- /dev/null
++++ b/new_script.js
+@@ -0,0 +1,1 @@
++console.log("hello");
+"#;
+    let diffs_new = super::server::parse_unified_diff(diff_new);
+    assert_eq!(diffs_new.len(), 1);
+    assert_eq!(diffs_new[0].path, "new_script.js");
+    assert_eq!(diffs_new[0].status, "added");
+    assert_eq!(diffs_new[0].additions, 1);
+
+    let diff_del = r#"diff --git a/deprecated.txt b/deprecated.txt
+deleted file mode 100644
+--- a/deprecated.txt
++++ /dev/null
+@@ -1,1 +0,0 @@
+-goodbye
+"#;
+    let diffs_del = super::server::parse_unified_diff(diff_del);
+    assert_eq!(diffs_del.len(), 1);
+    assert_eq!(diffs_del[0].path, "deprecated.txt");
+    assert_eq!(diffs_del[0].status, "deleted");
+    assert_eq!(diffs_del[0].deletions, 1);
+}
+
 
 

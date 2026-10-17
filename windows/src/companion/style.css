@@ -563,4 +563,17 @@ button {
   color: #737373;
 }
 
+.question-required-highlight {
+  animation: questionShake 0.35s ease-in-out;
+  outline: 2px solid rgba(245, 158, 11, 0.8) !important;
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+}
+
+@keyframes questionShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
 
