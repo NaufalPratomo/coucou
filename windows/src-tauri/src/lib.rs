@@ -921,6 +921,7 @@ pub fn run() {
             integrations::start(handle.clone());
             spotify::sync(&handle, &loaded.active_integrations);
             shortcuts::apply(&handle, &loaded.shortcuts);
+            web_companion::server::start_web_companion(handle.clone(), web_companion::server::DEFAULT_COMPANION_PORT);
             if loaded.autostart {
                 // Login items written before 0.5 start Coucou without --autostart:
                 // writing it again adds it, so the window stays hidden at login.

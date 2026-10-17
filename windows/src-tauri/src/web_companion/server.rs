@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use futures_util::{SinkExt, StreamExt};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
@@ -40,6 +40,108 @@ pub fn extract_token(path: &str) -> &str {
     ""
 }
 
+pub fn mime_type_for_path(path: &str) -> &'static str {
+    let lower = path.to_ascii_lowercase();
+    if lower.ends_with(".js") || lower.ends_with(".mjs") {
+        "application/javascript"
+    } else if lower.ends_with(".css") {
+        "text/css"
+    } else if lower.ends_with(".html") || lower.ends_with(".htm") {
+        "text/html; charset=utf-8"
+    } else if lower.ends_with(".json") || lower.ends_with(".map") {
+        "application/json"
+    } else if lower.ends_with(".webmanifest") {
+        "application/manifest+json"
+    } else if lower.ends_with(".svg") {
+        "image/svg+xml"
+    } else if lower.ends_with(".png") {
+        "image/png"
+    } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+        "image/jpeg"
+    } else if lower.ends_with(".webp") {
+        "image/webp"
+    } else if lower.ends_with(".gif") {
+        "image/gif"
+    } else if lower.ends_with(".ico") {
+        "image/x-icon"
+    } else if lower.ends_with(".woff2") {
+        "font/woff2"
+    } else if lower.ends_with(".woff") {
+        "font/woff"
+    } else if lower.ends_with(".ttf") {
+        "font/ttf"
+    } else if lower.ends_with(".wasm") {
+        "application/wasm"
+    } else {
+        "application/octet-stream"
+    }
+}
+
+pub fn resolve_asset_path(clean: &str) -> Option<std::path::PathBuf> {
+    if clean.is_empty() || clean.contains("..") || clean.contains('\\') || clean.contains('\0') {
+        return None;
+    }
+
+    let parts: Vec<&str> = clean.split('/').filter(|s| !s.is_empty()).collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    let mut base_dirs = vec![
+        std::path::PathBuf::from("dist"),
+        std::path::PathBuf::from("../dist"),
+        std::path::PathBuf::from("../../dist"),
+        std::path::PathBuf::from("windows/dist"),
+    ];
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            base_dirs.push(parent.join("dist"));
+            base_dirs.push(parent.join("../dist"));
+            base_dirs.push(parent.join("../../dist"));
+        }
+    }
+
+    for base in &base_dirs {
+        let mut file_path = base.clone();
+        for part in &parts {
+            file_path.push(part);
+        }
+        if file_path.is_file() {
+            return Some(file_path);
+        }
+    }
+
+    None
+}
+
+pub fn resolve_asset_file(app: &AppHandle, rel_path: &str) -> Option<(Vec<u8>, &'static str)> {
+    let clean = rel_path.trim_start_matches('/');
+    if let Some(path) = resolve_asset_path(clean) {
+        if let Ok(bytes) = std::fs::read(&path) {
+            return Some((bytes, mime_type_for_path(clean)));
+        }
+    }
+
+    // Also check Tauri Resource directory if packaged
+    if let Ok(res_path) = app.path().resolve(format!("dist/{clean}"), tauri::path::BaseDirectory::Resource) {
+        if res_path.is_file() {
+            if let Ok(bytes) = std::fs::read(&res_path) {
+                return Some((bytes, mime_type_for_path(clean)));
+            }
+        }
+    }
+    if let Ok(res_path) = app.path().resolve(clean, tauri::path::BaseDirectory::Resource) {
+        if res_path.is_file() {
+            if let Ok(bytes) = std::fs::read(&res_path) {
+                return Some((bytes, mime_type_for_path(clean)));
+            }
+        }
+    }
+
+    None
+}
+
 pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: SocketAddr) {
     let mut buf = [0u8; 2048];
     let n = match stream.peek(&mut buf).await {
@@ -76,13 +178,25 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
     let _ = stream.read_exact(&mut full_buf).await;
     let path = raw_path.split('?').next().unwrap_or(raw_path);
 
-    let (code, content_type, body) = match path {
-        "/" | "/companion.html" => (200, "text/html; charset=utf-8", include_bytes!("../../../companion.html").as_slice()),
-        "/manifest.json" => (200, "application/manifest+json", include_bytes!("../../../src/companion/manifest.json").as_slice()),
-        _ => (404, "text/plain", "Not Found".as_bytes()),
+    let (code, content_type, body): (u16, &str, Vec<u8>) = if path == "/" || path == "/companion.html" {
+        if let Some((bytes, mime)) = resolve_asset_file(&app, "companion.html") {
+            (200, mime, bytes)
+        } else {
+            (200, "text/html; charset=utf-8", include_bytes!("../../../companion.html").to_vec())
+        }
+    } else if path == "/manifest.json" {
+        if let Some((bytes, _)) = resolve_asset_file(&app, "manifest.json") {
+            (200, "application/manifest+json", bytes)
+        } else {
+            (200, "application/manifest+json", include_bytes!("../../../src/companion/manifest.json").to_vec())
+        }
+    } else if let Some((bytes, mime)) = resolve_asset_file(&app, path) {
+        (200, mime, bytes)
+    } else {
+        (404, "text/plain", b"Not Found".to_vec())
     };
 
-    let resp = http_response(code, content_type, body);
+    let resp = http_response(code, content_type, &body);
     let _ = stream.write_all(&resp).await;
     let _ = stream.flush().await;
 }
@@ -143,3 +257,44 @@ pub fn start_web_companion(app: AppHandle, port: u16) -> tokio::task::JoinHandle
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mime_type_for_path() {
+        assert_eq!(mime_type_for_path("bundle.js"), "application/javascript");
+        assert_eq!(mime_type_for_path("bundle.mjs"), "application/javascript");
+        assert_eq!(mime_type_for_path("style.css"), "text/css");
+        assert_eq!(mime_type_for_path("index.html"), "text/html; charset=utf-8");
+        assert_eq!(mime_type_for_path("data.json"), "application/json");
+        assert_eq!(mime_type_for_path("manifest.webmanifest"), "application/manifest+json");
+        assert_eq!(mime_type_for_path("icon.svg"), "image/svg+xml");
+        assert_eq!(mime_type_for_path("image.png"), "image/png");
+        assert_eq!(mime_type_for_path("photo.jpg"), "image/jpeg");
+        assert_eq!(mime_type_for_path("favicon.ico"), "image/x-icon");
+        assert_eq!(mime_type_for_path("font.woff2"), "font/woff2");
+        assert_eq!(mime_type_for_path("font.woff"), "font/woff");
+        assert_eq!(mime_type_for_path("font.ttf"), "font/ttf");
+        assert_eq!(mime_type_for_path("app.wasm"), "application/wasm");
+        assert_eq!(mime_type_for_path("unknown.bin"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_resolve_asset_path_traversal_prevention() {
+        assert!(resolve_asset_path("../etc/passwd").is_none());
+        assert!(resolve_asset_path("assets/../../etc/passwd").is_none());
+        assert!(resolve_asset_path("..\\windows\\win.ini").is_none());
+        assert!(resolve_asset_path("").is_none());
+    }
+
+    #[test]
+    fn test_resolve_asset_path_finds_dist_assets() {
+        if std::path::Path::new("dist/companion.html").is_file() {
+            let res = resolve_asset_path("companion.html");
+            assert!(res.is_some());
+        }
+    }
+}
+
