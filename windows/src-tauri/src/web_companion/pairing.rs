@@ -15,6 +15,13 @@ pub fn get_or_create_token() -> String {
     new_tok
 }
 
+pub fn lan_address() -> Option<std::net::IpAddr> {
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    socket.connect("192.0.2.1:9").ok()?;
+    let ip = socket.local_addr().ok()?.ip();
+    (!ip.is_unspecified() && !ip.is_loopback()).then_some(ip)
+}
+
 pub fn verify_token(provided: &str) -> bool {
     let provided = provided.trim();
     if provided.is_empty() {

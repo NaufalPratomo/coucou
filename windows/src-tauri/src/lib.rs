@@ -704,7 +704,7 @@ fn open_settings_window(app: AppHandle, page: Option<String>) {
 #[tauri::command]
 fn get_companion_pairing() -> serde_json::Value {
     let token = web_companion::pairing::get_or_create_token();
-    let host = phone_link::pairing::lan_address()
+    let host = web_companion::pairing::lan_address()
         .map(|ip| ip.to_string())
         .unwrap_or_else(|| "coucou.local".to_string());
     let url = format!("http://{host}:47822?token={token}");

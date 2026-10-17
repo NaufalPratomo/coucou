@@ -162,6 +162,11 @@ fn test_qr_svg_generation() {
 }
 
 #[test]
+fn test_lan_address() {
+    let _ = super::pairing::lan_address();
+}
+
+#[test]
 fn test_extract_token() {
     assert_eq!(super::server::extract_token("/ws?token=sec_tok_123"), "sec_tok_123");
     assert_eq!(super::server::extract_token("/ws?a=1&token=sec_tok_123&b=2"), "sec_tok_123");
