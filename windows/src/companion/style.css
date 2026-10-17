@@ -256,6 +256,7 @@ button {
 
 /* Karaoke Lyrics Container & Lines */
 #lyrics-container {
+  touch-action: pan-y;
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding: 2rem 0;

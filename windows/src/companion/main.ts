@@ -5,8 +5,10 @@ import {
   type StateSnapshot,
   type ApprovalPrompt,
 } from "./ws";
+import { setupMusicPlayer } from "./components/MusicPlayer";
 
 export let client: CompanionClient | null = null;
+export let player: ReturnType<typeof setupMusicPlayer> | null = null;
 
 export function setupTabs(): void {
   const tabButtons = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
@@ -61,9 +63,14 @@ export function initCompanionClient(): CompanionClient {
       if (islandStatus && state.agent?.status && state.agent.status !== "idle") {
         islandStatus.textContent = state.agent.status;
       }
+      if (player && state.media) {
+        player.update(state.media);
+      }
     },
-    (_posMs: number) => {
-      // Audio playback position tick — wired in Task 6
+    (posMs: number) => {
+      if (player) {
+        player.tick(posMs);
+      }
     },
     (_prompt: ApprovalPrompt) => {
       // Agent approval request — wired in Task 7
@@ -75,6 +82,7 @@ export function initCompanionClient(): CompanionClient {
     }
   );
 
+  player = setupMusicPlayer(companion);
   companion.connect();
   return companion;
 }
