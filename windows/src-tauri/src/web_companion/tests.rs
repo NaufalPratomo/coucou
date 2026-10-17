@@ -93,3 +93,21 @@ fn test_serialize_outbound_messages() {
     assert!(snapshot_json.contains(r#""isPlaying":true"#));
     assert!(snapshot_json.contains(r#""batteryPercent":85"#));
 }
+
+#[tokio::test]
+async fn test_http_response_headers() {
+    let headers = super::server::http_response(200, "text/html; charset=utf-8", "<h1>Coucou</h1>".as_bytes());
+    let text = String::from_utf8_lossy(&headers);
+    assert!(text.contains("HTTP/1.1 200 OK"));
+    assert!(text.contains("Content-Type: text/html"));
+    assert!(text.contains("Content-Length: 15"));
+}
+
+#[tokio::test]
+async fn test_http_response_404_headers() {
+    let headers = super::server::http_response(404, "text/plain", "Not Found".as_bytes());
+    let text = String::from_utf8_lossy(&headers);
+    assert!(text.contains("HTTP/1.1 404 Not Found"));
+    assert!(text.contains("Content-Type: text/plain"));
+    assert!(text.contains("Content-Length: 9"));
+}

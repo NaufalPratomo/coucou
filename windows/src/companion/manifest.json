@@ -1,0 +1,8 @@
+{
+  "name": "Coucou Companion",
+  "short_name": "Coucou",
+  "start_url": "/companion.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}
