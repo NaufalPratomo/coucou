@@ -224,4 +224,44 @@ fn test_chat_messages_serialization() {
     assert!(json.contains(r#""isUser":false"#));
 }
 
+#[test]
+fn test_icon_route_and_mime() {
+    assert!(super::server::is_icon_path("/icon.png"));
+    assert!(super::server::is_icon_path("/apple-touch-icon.png"));
+    assert!(super::server::is_icon_path("/apple-touch-icon-precomposed.png"));
+    assert!(!super::server::is_icon_path("/other.png"));
+    assert!(!super::server::is_icon_path("/companion.html"));
+    assert!(!super::server::is_icon_path("/manifest.json"));
+    assert!(!super::server::is_icon_path("/"));
+
+    assert_eq!(super::server::mime_type_for_path("/icon.png"), "image/png");
+    assert_eq!(super::server::mime_type_for_path("/apple-touch-icon.png"), "image/png");
+    assert_eq!(super::server::mime_type_for_path("/apple-touch-icon-precomposed.png"), "image/png");
+
+    let icon_bytes = include_bytes!("../../../src-tauri/icons/icon.png");
+    assert!(!icon_bytes.is_empty());
+    // Valid PNG signature: 137, 80, 78, 71, 13, 10, 26, 10
+    assert_eq!(&icon_bytes[..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+
+    let resp = super::server::http_response(200, "image/png", icon_bytes);
+    let resp_str = String::from_utf8_lossy(&resp[..128]);
+    assert!(resp_str.contains("HTTP/1.1 200 OK"));
+    assert!(resp_str.contains("Content-Type: image/png"));
+    assert!(resp_str.contains(&format!("Content-Length: {}", icon_bytes.len())));
+}
+
+#[test]
+fn test_icon_route_query_stripping() {
+    let raw_header = "GET /icon.png?v=0.6.10 HTTP/1.1\r\nHost: coucou.local:47822\r\n\r\n";
+    let raw_path = raw_header
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .unwrap_or("/");
+    let path = raw_path.split('?').next().unwrap_or(raw_path);
+    assert_eq!(path, "/icon.png");
+    assert!(super::server::is_icon_path(path));
+}
+
+
 

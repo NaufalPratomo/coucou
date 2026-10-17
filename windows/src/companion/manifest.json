@@ -8,9 +8,15 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/128x128.png",
-      "sizes": "128x128",
+      "src": "/icon.png",
+      "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -78,6 +78,10 @@ pub fn mime_type_for_path(path: &str) -> &'static str {
     }
 }
 
+pub fn is_icon_path(path: &str) -> bool {
+    path == "/icon.png" || path == "/apple-touch-icon.png" || path == "/apple-touch-icon-precomposed.png"
+}
+
 pub fn resolve_asset_path(clean: &str) -> Option<std::path::PathBuf> {
     if clean.is_empty() || clean.contains("..") || clean.contains('\\') || clean.contains('\0') {
         return None;
@@ -182,6 +186,8 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
         } else {
             (200, "application/manifest+json".to_string(), include_bytes!("../../../src/companion/manifest.json").to_vec())
         }
+    } else if path == "/icon.png" || path == "/apple-touch-icon.png" || path == "/apple-touch-icon-precomposed.png" {
+        (200, "image/png".to_string(), include_bytes!("../../../src-tauri/icons/icon.png").to_vec())
     } else if let Some((bytes, mime)) = resolve_asset_file(&app, path) {
         (200, mime, bytes)
     } else {
