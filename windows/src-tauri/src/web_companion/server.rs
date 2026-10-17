@@ -115,27 +115,18 @@ pub fn resolve_asset_path(clean: &str) -> Option<std::path::PathBuf> {
     None
 }
 
-pub fn resolve_asset_file(app: &AppHandle, rel_path: &str) -> Option<(Vec<u8>, &'static str)> {
+pub fn resolve_asset_file(app: &AppHandle, rel_path: &str) -> Option<(Vec<u8>, String)> {
     let clean = rel_path.trim_start_matches('/');
-    if let Some(path) = resolve_asset_path(clean) {
-        if let Ok(bytes) = std::fs::read(&path) {
-            return Some((bytes, mime_type_for_path(clean)));
-        }
+
+    // 1. Tauri's embedded asset resolver (serves compiled dist/* directly from the binary)
+    if let Some(asset) = app.asset_resolver().get(clean.to_string()) {
+        return Some((asset.bytes, asset.mime_type));
     }
 
-    // Also check Tauri Resource directory if packaged
-    if let Ok(res_path) = app.path().resolve(format!("dist/{clean}"), tauri::path::BaseDirectory::Resource) {
-        if res_path.is_file() {
-            if let Ok(bytes) = std::fs::read(&res_path) {
-                return Some((bytes, mime_type_for_path(clean)));
-            }
-        }
-    }
-    if let Ok(res_path) = app.path().resolve(clean, tauri::path::BaseDirectory::Resource) {
-        if res_path.is_file() {
-            if let Ok(bytes) = std::fs::read(&res_path) {
-                return Some((bytes, mime_type_for_path(clean)));
-            }
+    // 2. Filesystem fallback
+    if let Some(path) = resolve_asset_path(clean) {
+        if let Ok(bytes) = std::fs::read(&path) {
+            return Some((bytes, mime_type_for_path(clean).to_string()));
         }
     }
 
@@ -178,25 +169,25 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
     let _ = stream.read_exact(&mut full_buf).await;
     let path = raw_path.split('?').next().unwrap_or(raw_path);
 
-    let (code, content_type, body): (u16, &str, Vec<u8>) = if path == "/" || path == "/companion.html" {
+    let (code, content_type, body): (u16, String, Vec<u8>) = if path == "/" || path == "/companion.html" {
         if let Some((bytes, mime)) = resolve_asset_file(&app, "companion.html") {
             (200, mime, bytes)
         } else {
-            (200, "text/html; charset=utf-8", include_bytes!("../../../companion.html").to_vec())
+            (200, "text/html; charset=utf-8".to_string(), include_bytes!("../../../companion.html").to_vec())
         }
     } else if path == "/manifest.json" {
-        if let Some((bytes, _)) = resolve_asset_file(&app, "manifest.json") {
-            (200, "application/manifest+json", bytes)
+        if let Some((bytes, mime)) = resolve_asset_file(&app, "manifest.json") {
+            (200, mime, bytes)
         } else {
-            (200, "application/manifest+json", include_bytes!("../../../src/companion/manifest.json").to_vec())
+            (200, "application/manifest+json".to_string(), include_bytes!("../../../src/companion/manifest.json").to_vec())
         }
     } else if let Some((bytes, mime)) = resolve_asset_file(&app, path) {
         (200, mime, bytes)
     } else {
-        (404, "text/plain", b"Not Found".to_vec())
+        (404, "text/plain".to_string(), b"Not Found".to_vec())
     };
 
-    let resp = http_response(code, content_type, &body);
+    let resp = http_response(code, &content_type, &body);
     let _ = stream.write_all(&resp).await;
     let _ = stream.flush().await;
 }
