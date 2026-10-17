@@ -39,6 +39,7 @@ mod tray;
 mod voice;
 #[cfg(windows)]
 mod webview_drop;
+pub mod web_companion;
 
 use std::process::Command;
 use std::sync::atomic::Ordering;
