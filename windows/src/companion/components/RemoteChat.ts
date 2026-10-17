@@ -26,7 +26,7 @@ export function setupRemoteChat(client: CompanionClient) {
       btnModeAi?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
       btnModeClip?.classList.remove("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
       btnModeClip?.classList.add("border-neutral-800", "bg-neutral-900", "text-neutral-400");
-      if (input) input.placeholder = "Ask Mochi or prompt laptop AI...";
+      if (input) input.placeholder = "Prompt Antigravity on laptop...";
     } else {
       btnModeClip?.classList.add("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
       btnModeClip?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
@@ -89,7 +89,7 @@ export function setupRemoteChat(client: CompanionClient) {
     if (input) input.value = "";
     triggerHaptic(15);
     client.sendChatMessage(text, mode);
-    showToast(mode === "clip" ? "Copied to PC!" : "Sent to AI!");
+    showToast(mode === "clip" ? "Copied to PC!" : "Sent to Antigravity!");
   };
 
   form?.addEventListener("submit", (e) => {

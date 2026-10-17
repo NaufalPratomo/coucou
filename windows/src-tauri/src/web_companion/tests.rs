@@ -264,5 +264,87 @@ fn test_icon_route_query_stripping() {
     assert!(super::server::is_icon_path(path));
 }
 
+#[test]
+fn test_format_tool_activity() {
+    let bash_payload = serde_json::json!({
+        "tool": "run_command",
+        "tool_input": {
+            "CommandLine": "cargo test --all"
+        }
+    });
+    let act = super::server::format_tool_activity("run_command", &bash_payload);
+    assert_eq!(act, "Runs · cargo test --all");
+
+    let read_payload = serde_json::json!({
+        "tool": "view_file",
+        "tool_input": {
+            "TargetFile": "windows\\src-tauri\\src\\lib.rs"
+        }
+    });
+    let act_read = super::server::format_tool_activity("view_file", &read_payload);
+    assert_eq!(act_read, "Reads · lib.rs");
+
+    let write_payload = serde_json::json!({
+        "tool": "write_to_file",
+        "tool_input": {
+            "TargetFile": "/home/user/project/README.md"
+        }
+    });
+    let act_write = super::server::format_tool_activity("write_to_file", &write_payload);
+    assert_eq!(act_write, "Writes · README.md");
+
+    let edit_payload = serde_json::json!({
+        "tool": "replace_file_content",
+        "tool_input": {
+            "TargetFile": "windows/src/companion/main.ts"
+        }
+    });
+    let act_edit = super::server::format_tool_activity("replace_file_content", &edit_payload);
+    assert_eq!(act_edit, "Edits · main.ts");
+
+    let search_payload = serde_json::json!({
+        "tool": "search_web",
+        "tool_input": {
+            "query": "tauri v2 local server"
+        }
+    });
+    let act_search = super::server::format_tool_activity("search_web", &search_payload);
+    assert_eq!(act_search, "Searches · tauri v2 local server");
+}
+
+#[test]
+fn test_record_hook_event_lifecycle() {
+    let submit_payload = serde_json::json!({
+        "prompt": "Fix bug in audio player",
+        "session_id": "sess-456"
+    });
+    super::server::record_hook_event("UserPromptSubmit", &submit_payload);
+    let (status, goal, tool) = super::server::current_hook_agent_state();
+    assert_eq!(status, "running");
+    assert_eq!(goal, Some("Fix bug in audio player".to_string()));
+    assert_eq!(tool, Some("Thinking & planning...".to_string()));
+
+    let tool_payload = serde_json::json!({
+        "tool": "run_command",
+        "tool_input": {
+            "CommandLine": "npm test"
+        }
+    });
+    super::server::record_hook_event("PreToolUse", &tool_payload);
+    let (status2, goal2, tool2) = super::server::current_hook_agent_state();
+    assert_eq!(status2, "running");
+    assert_eq!(goal2, Some("Fix bug in audio player".to_string()));
+    assert_eq!(tool2, Some("Runs · npm test".to_string()));
+
+    let stop_payload = serde_json::json!({
+        "last_assistant_message": "All tests passed successfully!"
+    });
+    super::server::record_hook_event("Stop", &stop_payload);
+    let (status3, goal3, tool3) = super::server::current_hook_agent_state();
+    assert_eq!(status3, "idle");
+    assert_eq!(goal3, Some("Fix bug in audio player".to_string()));
+    assert_eq!(tool3, Some("Task complete".to_string()));
+}
+
 
 

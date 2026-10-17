@@ -265,31 +265,124 @@ static HOOK_AGENT_STATE: LazyLock<Mutex<HookAgentState>> = LazyLock::new(|| {
     })
 });
 
+#[cfg(test)]
+pub(crate) fn current_hook_agent_state() -> (String, Option<String>, Option<String>) {
+    let s = HOOK_AGENT_STATE.lock().unwrap();
+    (s.status.clone(), s.active_goal.clone(), s.current_tool.clone())
+}
+
+static LAST_ACTIVE_SESSION: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
+static WS_BROADCAST: LazyLock<tokio::sync::broadcast::Sender<OutboundMessage>> = LazyLock::new(|| tokio::sync::broadcast::channel(64).0);
+
+pub fn broadcast_message(msg: OutboundMessage) {
+    let _ = WS_BROADCAST.send(msg);
+}
+
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.chars().count() <= max_len {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(max_len.saturating_sub(1)).collect();
+        format!("{truncated}…")
+    }
+}
+
+pub(crate) fn format_tool_activity(tool: &str, payload: &serde_json::Value) -> String {
+    let input = payload.get("tool_input").and_then(|v| v.as_object())
+        .or_else(|| payload.get("toolArgs").and_then(|v| v.as_object()))
+        .or_else(|| payload.get("toolCall").and_then(|v| v.get("args")).and_then(|v| v.as_object()));
+
+    if let Some(map) = input {
+        if let Some(cmd) = map.get("command").or_else(|| map.get("CommandLine")).and_then(|v| v.as_str()) {
+            let clean = cmd.trim();
+            let first_line = clean.lines().next().unwrap_or(clean);
+            return format!("Runs · {}", truncate_str(first_line, 45));
+        }
+        if let Some(path) = map.get("file_path")
+            .or_else(|| map.get("path"))
+            .or_else(|| map.get("FilePath"))
+            .or_else(|| map.get("TargetFile"))
+            .and_then(|v| v.as_str())
+        {
+            let clean = path.replace('\\', "/");
+            let basename = clean.split('/').last().unwrap_or(path);
+            return match tool {
+                "view_file" | "Read" => format!("Reads · {basename}"),
+                "write_to_file" | "Write" => format!("Writes · {basename}"),
+                "replace_file_content" | "Edit" | "MultiEdit" => format!("Edits · {basename}"),
+                _ => format!("{tool} · {basename}"),
+            };
+        }
+        if let Some(q) = map.get("query").or_else(|| map.get("Query")).and_then(|v| v.as_str()) {
+            return format!("Searches · {}", truncate_str(q, 40));
+        }
+        if let Some(u) = map.get("url").or_else(|| map.get("Url")).and_then(|v| v.as_str()) {
+            return format!("Fetches · {}", truncate_str(u, 40));
+        }
+    }
+
+    match tool {
+        "run_command" | "Bash" | "PowerShell" => "Running command...".to_string(),
+        "view_file" | "Read" => "Reading file...".to_string(),
+        "write_to_file" | "Write" => "Writing file...".to_string(),
+        "replace_file_content" | "Edit" | "MultiEdit" => "Editing file...".to_string(),
+        "search_web" | "WebSearch" => "Searching web...".to_string(),
+        "read_url_content" | "WebFetch" => "Fetching URL...".to_string(),
+        t => format!("Working with {t}..."),
+    }
+}
+
 pub fn record_hook_event(event: &str, payload: &serde_json::Value) {
     let now = (now_ms()) as u64;
     let mut state = HOOK_AGENT_STATE.lock().unwrap();
     state.last_event_time = now;
 
+    if let Some(session) = payload.get("session_id").and_then(|v| v.as_str()) {
+        *LAST_ACTIVE_SESSION.lock().unwrap() = Some(session.to_string());
+    }
+
     match event {
-        "PreToolUse" => {
+        "PreToolUse" | "pre_tool_use" => {
             state.status = "running".to_string();
-            state.current_tool = payload.get("tool").or_else(|| payload.get("tool_name")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let tool = payload.get("tool").or_else(|| payload.get("tool_name")).and_then(|v| v.as_str()).unwrap_or("Tool");
+            let activity = format_tool_activity(tool, payload);
+            state.current_tool = Some(activity);
         }
-        "PostToolUse" => {
-            state.status = "running".to_string();
-            state.current_tool = None;
-        }
-        "UserPrompt" => {
-            state.status = "running".to_string();
-            state.active_goal = payload.get("prompt").or_else(|| payload.get("message")).and_then(|v| v.as_str()).map(|s| s.to_string());
-        }
-        "SessionStart" => {
+        "PostToolUse" | "post_tool_use" => {
             state.status = "running".to_string();
         }
-        "SessionEnd" => {
+        "UserPromptSubmit" | "UserPrompt" | "PreInvocation" | "user_prompt_submit" => {
+            state.status = "running".to_string();
+            let prompt = payload.get("prompt").or_else(|| payload.get("message")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            if let Some(p) = prompt {
+                state.active_goal = Some(p.clone());
+                broadcast_message(OutboundMessage::ChatReply {
+                    text: p,
+                    is_user: true,
+                });
+            }
+            state.current_tool = Some("Thinking & planning...".to_string());
+        }
+        "Stop" | "stop" | "AfterAgent" => {
             state.status = "idle".to_string();
-            state.current_tool = None;
-            state.active_goal = None;
+            state.current_tool = Some("Task complete".to_string());
+            if let Some(msg) = payload.get("last_assistant_message").or_else(|| payload.get("message")).and_then(|v| v.as_str()) {
+                let trimmed = msg.trim();
+                if !trimmed.is_empty() {
+                    broadcast_message(OutboundMessage::ChatReply {
+                        text: trimmed.to_string(),
+                        is_user: false,
+                    });
+                }
+            }
+        }
+        "SessionStart" | "session_start" => {
+            state.status = "running".to_string();
+            state.current_tool = Some("Session started".to_string());
+        }
+        "SessionEnd" | "session_end" => {
+            state.status = "idle".to_string();
+            state.current_tool = Some("Session ended".to_string());
             state.pending_request = None;
         }
         _ => {}
@@ -306,12 +399,14 @@ pub fn record_permission_request(id: &str, payload: &serde_json::Value) {
     let command = payload.get("command").or_else(|| payload.get("cmd")).and_then(|v| v.as_str()).map(|s| s.to_string());
     let prompt = payload.get("prompt").or_else(|| payload.get("message")).and_then(|v| v.as_str()).unwrap_or("Action approval required").to_string();
 
-    state.pending_request = Some(ApprovalPrompt {
+    let prompt_obj = ApprovalPrompt {
         id: id.to_string(),
         prompt,
         tool,
         command,
-    });
+    };
+    state.pending_request = Some(prompt_obj.clone());
+    broadcast_message(OutboundMessage::AgentPrompt(prompt_obj));
 }
 
 pub fn clear_permission_request(id: &str) {
@@ -374,9 +469,9 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
             current_tool: hook_state.current_tool,
             pending_request: hook_state.pending_request,
         })
-    } else if hook_state.status != "idle" && now.saturating_sub(hook_state.last_event_time) < 45_000 {
+    } else if hook_state.status != "idle" && now.saturating_sub(hook_state.last_event_time) < 120_000 {
         Some(AgentState {
-            status: "Running".to_string(),
+            status: if hook_state.status == "thinking" { "Thinking".to_string() } else { "Running".to_string() },
             active_goal: hook_state.active_goal,
             current_tool: hook_state.current_tool,
             pending_request: None,
@@ -384,8 +479,8 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
     } else {
         Some(AgentState {
             status: "Idle".to_string(),
-            active_goal: None,
-            current_tool: None,
+            active_goal: hook_state.active_goal,
+            current_tool: hook_state.current_tool.or_else(|| Some("Standing by".to_string())),
             pending_request: None,
         })
     };
@@ -412,6 +507,7 @@ pub async fn handle_ws_session(
 
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<OutboundMessage>(32);
     let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
+    let mut bcast_rx = WS_BROADCAST.subscribe();
 
     let app_broadcaster = app.clone();
     let out_tx_broadcaster = out_tx.clone();
@@ -431,11 +527,23 @@ pub async fn handle_ws_session(
     });
 
     let writer_task = tauri::async_runtime::spawn(async move {
-        while let Some(msg) = out_rx.recv().await {
-            if let Ok(json) = serde_json::to_string(&msg) {
-                if ws_tx.send(Message::Text(json.into())).await.is_err() {
-                    break;
+        loop {
+            tokio::select! {
+                Some(msg) = out_rx.recv() => {
+                    if let Ok(json) = serde_json::to_string(&msg) {
+                        if ws_tx.send(Message::Text(json.into())).await.is_err() {
+                            break;
+                        }
+                    }
                 }
+                Ok(msg) = bcast_rx.recv() => {
+                    if let Ok(json) = serde_json::to_string(&msg) {
+                        if ws_tx.send(Message::Text(json.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+                else => break,
             }
         }
         let _ = ws_tx.close().await;
@@ -489,6 +597,26 @@ pub async fn handle_ws_session(
                         use tauri::Emitter;
                         let _ = app.emit_to(crate::island::WINDOW_LABEL, "remote-chat", text_trim.clone());
 
+                        // 3. Bring the active Antigravity session window / terminal to the front
+                        let session_opt = LAST_ACTIVE_SESSION.lock().unwrap().clone();
+                        if let Some(session_id) = session_opt {
+                            #[cfg(windows)]
+                            {
+                                if let Some(owners) = crate::session_window::lookup(&session_id) {
+                                    let _ = crate::platform::focus_session_window(&owners, "");
+                                }
+                            }
+                        }
+
+                        // 4. Update the active goal immediately
+                        {
+                            let mut state = HOOK_AGENT_STATE.lock().unwrap();
+                            state.active_goal = Some(text_trim.clone());
+                            state.status = "running".to_string();
+                            state.current_tool = Some("Dispatched to Antigravity".to_string());
+                            state.last_event_time = (now_ms()) as u64;
+                        }
+
                         let app_clone = app.clone();
                         let out_tx_chat = out_tx.clone();
                         let mode_str = mode.unwrap_or_else(|| "ai".to_string());
@@ -499,36 +627,20 @@ pub async fn handle_ws_session(
                                 is_user: true,
                             }).await;
 
-                            if mode_str == "clip" {
-                                let _ = out_tx_chat.send(OutboundMessage::ChatReply {
-                                    text: "Copied to PC clipboard! Ready to paste (Ctrl+V) on laptop.".to_string(),
-                                    is_user: false,
-                                }).await;
-                                return;
-                            }
-
-                            let settings = app_clone.state::<crate::Shared>().settings.lock().unwrap().clone();
-                            if let Some(chat) = app_clone.try_state::<crate::chat::Chat>() {
-                                match crate::chat::send(&app_clone, &chat, &settings, text_trim, None).await {
-                                    Ok(reply) => {
-                                        let _ = out_tx_chat.send(OutboundMessage::ChatReply {
-                                            text: reply.text,
-                                            is_user: false,
-                                        }).await;
-                                    }
-                                    Err(err) => {
-                                        let _ = out_tx_chat.send(OutboundMessage::ChatReply {
-                                            text: format!("AI Assistant: {err}"),
-                                            is_user: false,
-                                        }).await;
-                                    }
-                                }
+                            let ack_reply = if mode_str == "clip" {
+                                "Copied to PC clipboard! Ready to paste (Ctrl+V) on laptop.".to_string()
                             } else {
-                                let _ = out_tx_chat.send(OutboundMessage::ChatReply {
-                                    text: "Copied to PC clipboard!".to_string(),
-                                    is_user: false,
-                                }).await;
-                            }
+                                "Prompt dispatched to Antigravity & copied to clipboard! Terminal focused.".to_string()
+                            };
+
+                            let _ = out_tx_chat.send(OutboundMessage::ChatReply {
+                                text: ack_reply,
+                                is_user: false,
+                            }).await;
+
+                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                            let snap = build_snapshot(&app_clone).await;
+                            let _ = out_tx_chat.send(OutboundMessage::FullSync(snap)).await;
                         });
                     }
                     InboundMessage::Ping => {

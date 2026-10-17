@@ -181,6 +181,8 @@ export function initCompanionClient(): CompanionClient {
       if (islandStatus) {
         if (hasPendingApproval || isWaitingConfirmation) {
           islandStatus.textContent = "Approval Needed";
+        } else if (state.agent?.currentTool && agentStatusLower !== "idle") {
+          islandStatus.textContent = state.agent.currentTool;
         } else if (agentStatusLower && agentStatusLower !== "idle") {
           islandStatus.textContent = state.agent!.status;
         } else if (agentStatusLower === "idle") {
