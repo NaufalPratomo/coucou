@@ -1,6 +1,4 @@
 use std::net::SocketAddr;
-#[allow(unused_imports)]
-use std::sync::{Arc, Mutex};
 use futures_util::{SinkExt, StreamExt};
 use tauri::AppHandle;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -35,7 +33,8 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
     };
     let req_header = String::from_utf8_lossy(&buf[..n]);
 
-    if req_header.contains("Upgrade: websocket") || req_header.contains("upgrade: websocket") {
+    let req_lower = req_header.to_ascii_lowercase();
+    if req_lower.contains("upgrade: websocket") {
         if let Ok(ws_stream) = tokio_tungstenite::accept_async(stream).await {
             handle_ws_session(app, ws_stream, addr).await;
         }
@@ -45,19 +44,20 @@ pub async fn handle_connection(app: AppHandle, mut stream: TcpStream, addr: Sock
     // Handle HTTP GET
     let mut full_buf = vec![0u8; n];
     let _ = stream.read_exact(&mut full_buf).await;
-    let path = req_header
+    let raw_path = req_header
         .lines()
         .next()
         .and_then(|l| l.split_whitespace().nth(1))
         .unwrap_or("/");
+    let path = raw_path.split('?').next().unwrap_or(raw_path);
 
-    let (content_type, body) = match path {
-        "/" | "/companion.html" => ("text/html; charset=utf-8", include_bytes!("../../../companion.html").as_slice()),
-        "/manifest.json" => ("application/manifest+json", include_bytes!("../../../src/companion/manifest.json").as_slice()),
-        _ => ("text/plain", "Not Found".as_bytes()),
+    let (code, content_type, body) = match path {
+        "/" | "/companion.html" => (200, "text/html; charset=utf-8", include_bytes!("../../../companion.html").as_slice()),
+        "/manifest.json" => (200, "application/manifest+json", include_bytes!("../../../src/companion/manifest.json").as_slice()),
+        _ => (404, "text/plain", "Not Found".as_bytes()),
     };
 
-    let resp = http_response(200, content_type, body);
+    let resp = http_response(code, content_type, body);
     let _ = stream.write_all(&resp).await;
     let _ = stream.flush().await;
 }

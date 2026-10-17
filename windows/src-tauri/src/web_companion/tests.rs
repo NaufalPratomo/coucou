@@ -111,3 +111,24 @@ async fn test_http_response_404_headers() {
     assert!(text.contains("Content-Type: text/plain"));
     assert!(text.contains("Content-Length: 9"));
 }
+
+#[test]
+fn test_route_query_stripping() {
+    let raw_header = "GET /?token=abc1234 HTTP/1.1\r\nHost: coucou.local:47822\r\n\r\n";
+    let raw_path = raw_header
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .unwrap_or("/");
+    let path = raw_path.split('?').next().unwrap_or(raw_path);
+    assert_eq!(path, "/");
+
+    let raw_header_companion = "GET /companion.html?v=1.0 HTTP/1.1\r\nHost: coucou.local:47822\r\n\r\n";
+    let raw_path_companion = raw_header_companion
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .unwrap_or("/");
+    let path_companion = raw_path_companion.split('?').next().unwrap_or(raw_path_companion);
+    assert_eq!(path_companion, "/companion.html");
+}
