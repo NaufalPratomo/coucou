@@ -1,5 +1,6 @@
 // Windows Notification Interceptor & Queue
 import { onEvent } from "./bridge";
+import { Sound } from "./sound";
 import { State } from "./state";
 
 export interface WindowsNotification {
@@ -53,8 +54,13 @@ export function registerNotificationHandlers(onNewNotification?: (n: WindowsNoti
       msgTask.stepIndex = 1;
     }
 
-    // Set active banner
+    // Set active banner & play gentle pop sound
     activeNotifBanner = notif;
+    try {
+      Sound.play("pop");
+    } catch {
+      // Audio autoplay may be constrained
+    }
     State.notify();
     onNewNotification?.(notif);
 

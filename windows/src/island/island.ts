@@ -1016,7 +1016,13 @@ export class Island {
     const notif = activeNotifBanner;
     if (!notif) return;
     clear(this.notifBanner);
-    const badge = h("span", { class: "notif-badge", text: notif.appName });
+    const isPhone = /phone|telepon|link to windows/i.test(notif.appName);
+    const badge = h("span", { class: isPhone ? "notif-badge phone" : "notif-badge" });
+    if (isPhone) {
+      badge.innerHTML = '<svg class="notif-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3" ry="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg><span>iPhone</span>';
+    } else {
+      badge.textContent = notif.appName;
+    }
     const title = h("span", { class: "notif-title", text: notif.title });
     const sep = h("span", { class: "notif-sep", text: ":" });
     const body = h("span", { class: "notif-body", text: notif.body });

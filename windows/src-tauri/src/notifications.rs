@@ -125,6 +125,7 @@ fn run_listener(app: AppHandle) -> windows::core::Result<()> {
                     };
 
                     let _ = app.emit(NOTIFICATION_EVENT, &payload);
+                    crate::log::line(format!("notification [{}] {}: {}", payload.app_name, payload.title, payload.body));
                 }
             }
         }
