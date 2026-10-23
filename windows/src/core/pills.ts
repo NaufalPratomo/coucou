@@ -134,8 +134,8 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
   { id: "integration_spotify", name: "Music", color: "#1DB954", category: "service",
     subtitle: "Media Player", source: "n8n", support: "yes", connect: none },
   // Windows Toast Notification Interceptor & Messages Center
-  { id: "integration_messages", name: "Messages", color: "#38BDF8", category: "service",
-    subtitle: "Notifications", source: "n8n", support: "yes", connect: none },
+  { id: "integration_messages", name: "NOFFF", color: "#0A84FF", category: "service",
+    subtitle: "iPhone Connected", source: "n8n", support: "yes", connect: none },
 ];
 
 export const MESSAGES_ID = "integration_messages";
@@ -186,7 +186,7 @@ export function sessionSubtitle(id: string): string {
     case "agent_hermes": return "Hermes";
     case "agent_claude-desktop": return "Claude Desktop";
     case "integration_spotify": return "Music";
-    case "integration_messages": return "Messages";
+    case "integration_messages": return "NOFFF";
     default: return N_("Agent");
   }
 }
