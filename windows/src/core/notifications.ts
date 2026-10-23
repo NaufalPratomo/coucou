@@ -44,9 +44,11 @@ export function registerNotificationHandlers(onNewNotification?: (n: WindowsNoti
       notificationHistory.pop();
     }
 
-    // Update Messages task state if present
+    // Update NOFFF iPhone task state if present
     const msgTask = State.tasks.find((t) => t.id === "integration_messages");
     if (msgTask) {
+      msgTask.name = "NOFFF";
+      msgTask.color = "#0A84FF";
       msgTask.state = "thinking";
       msgTask.emote = "surprised";
       msgTask.pillBadge = "approval";

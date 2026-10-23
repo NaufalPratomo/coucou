@@ -36,9 +36,9 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
     clear(el);
 
     // Header
-    const headDot = dot("#38BDF8", 8);
-    const title = h("span", { class: "msg-card-title", text: "Messages" });
-    const sub = h("span", { class: "msg-card-sub", text: "Notifications" });
+    const headDot = dot("#0A84FF", 8);
+    const title = h("span", { class: "msg-card-title", text: "NOFFF" });
+    const sub = h("span", { class: "msg-card-sub", text: "iPhone Connected" });
     const countBadge = h("span", {
       class: "msg-card-count",
       text: `${notificationHistory.length}`,
@@ -72,9 +72,9 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
 
     if (notificationHistory.length === 0) {
       body.style.overflow = "hidden";
-      const emptyIcon = svg(ICONS.bubble, 28);
+      const emptyIcon = svg(ICONS.iphone, 28);
       emptyIcon.classList.add("msg-empty-icon");
-      const emptyText = h("div", { class: "msg-empty-text", text: "No notifications" });
+      const emptyText = h("div", { class: "msg-empty-text", text: "No new iPhone notifications" });
       const emptyWrap = h("div", { class: "msg-empty-wrap" }, emptyIcon, emptyText);
       body.append(emptyWrap);
     } else {
@@ -134,10 +134,10 @@ export function buildMessagesPill(onFocus: () => void): { el: HTMLElement; sync(
 
   function render() {
     clear(el);
-    const d = dot("#38BDF8", 7);
-    const name = h("span", { class: "int-name", text: "Messages" });
+    const d = dot("#0A84FF", 7);
+    const name = h("span", { class: "int-name", text: "NOFFF" });
     const count = notificationHistory.length;
-    const countText = count > 0 ? (count === 1 ? "1 notification" : `${count} notifications`) : "No notifications";
+    const countText = count > 0 ? (count === 1 ? "1 notification" : `${count} notifications`) : "Connected";
     const sub = h("span", { class: "int-sub", text: countText });
     el.append(d, name, sub);
   }
