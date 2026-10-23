@@ -136,7 +136,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, divider, agentTabs),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn),
   );
-  const headerActions = el.lastElementChild as HTMLElement;
+  const headerActions = (el.lastElementChild ?? el.childNodes[1]) as HTMLElement;
 
   function syncAgentTabs() {
     const focusId = State.focusTask?.id;
@@ -154,7 +154,9 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const tab = h(
         "button",
         {
-          class: isFocused ? "agent-tab active" : "agent-tab",
+          class: isFocused
+            ? (task.id === MESSAGES_ID ? "agent-tab active nofff-tab" : "agent-tab active")
+            : (task.id === MESSAGES_ID ? "agent-tab nofff-tab" : "agent-tab"),
           title: task.name,
           onclick: () => {
             actions.blip();

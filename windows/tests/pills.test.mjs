@@ -45,7 +45,7 @@ test("the catalog holds the Mac's pills with the Claude Code label for Windows a
     ["integration_stripe", "Stripe", "#0570DE", "service", "Integration"],
     ["integration_music", "Apple Music", "#FA2D48", "service", "Integration"],
     ["integration_spotify", "Music", "#1DB954", "service", "Media Player"],
-    ["integration_messages", "Messages", "#38BDF8", "service", "Notifications"],
+    ["integration_messages", "NOFFF", "#0A84FF", "service", "iPhone Connected"],
   ];
   assert.deepEqual(
     PILL_CATALOG.map((p) => [p.id, p.name, p.color, p.category, p.subtitle]),

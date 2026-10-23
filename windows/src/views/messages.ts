@@ -3,6 +3,7 @@ import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { notificationHistory } from "../core/notifications";
+import { tl } from "../i18n/i18n";
 
 function getAppColor(appName: string): string {
   const lower = appName.toLowerCase();
@@ -137,7 +138,7 @@ export function buildMessagesPill(onFocus: () => void): { el: HTMLElement; sync(
     const d = dot("#0A84FF", 7);
     const name = h("span", { class: "int-name", text: "NOFFF" });
     const count = notificationHistory.length;
-    const countText = count > 0 ? (count === 1 ? "1 notification" : `${count} notifications`) : "Connected";
+    const countText = count > 0 ? (count === 1 ? "1 notification" : `${count} notifications`) : tl("Connected");
     const sub = h("span", { class: "int-sub", text: countText });
     el.append(d, name, sub);
   }
