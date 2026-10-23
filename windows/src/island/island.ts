@@ -12,6 +12,7 @@ import {
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
+import { MESSAGES_ID, PHONE_ID } from "../core/pills";
 import { SPOTIFY_ID, Spotify, islandDances, spotifyPosition } from "../core/spotify";
 import { fetchLyrics, getCurrentLyric, type ParsedLyric } from "../core/lyrics";
 import {
@@ -661,6 +662,9 @@ export class Island {
     let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
       h = QUESTION_PICKER_H;
+    }
+    if (State.mode === "expanded" && (State.view === "overview" || State.view === "empty") && (State.focusTask?.id === PHONE_ID || State.focusTask?.id === MESSAGES_ID)) {
+      h = 246;
     }
     if (State.mode === "compact" && activeNotifBanner != null) {
       w = 380;
