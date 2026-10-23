@@ -3092,3 +3092,177 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   border-color: rgba(56, 189, 248, 0.4);
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
 }
+
+/* ── NOFFF iPhone Battery & Companion Elements ───────────────────────────── */
+
+.nofff-bat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font: 600 11px var(--font);
+}
+
+.nofff-pair-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(10, 132, 255, 0.35);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: rgba(10, 132, 255, 0.15);
+  color: #60a5fa;
+  font: 500 10.5px var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+
+.nofff-pair-btn:hover {
+  background: rgba(10, 132, 255, 0.28);
+  border-color: rgba(10, 132, 255, 0.6);
+  color: #93c5fd;
+}
+
+.nofff-cat-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nofff-cat-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.nofff-cat-chip {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dim-2);
+  font: 500 10.5px var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.nofff-cat-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+.nofff-cat-chip.active {
+  background: rgba(10, 132, 255, 0.2);
+  border-color: rgba(10, 132, 255, 0.5);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.nofff-qr-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 17, 23, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.nofff-qr-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--dim-3);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.nofff-qr-close:hover {
+  color: #ffffff;
+}
+
+.nofff-qr-title {
+  font: 600 13px var(--font);
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.nofff-qr-sub {
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+  max-width: 280px;
+  margin-bottom: 6px;
+}
+
+.nofff-qr-box {
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 8px;
+  margin: 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font: 500 11px monospace;
+}
+
+.nofff-qr-box svg {
+  width: 96px;
+  height: 96px;
+  display: block;
+}
+
+.nofff-qr-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  max-width: 320px;
+}
+
+.nofff-qr-link {
+  font: 500 10.5px monospace;
+  color: #60a5fa;
+  text-decoration: underline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nofff-qr-copy-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font: 500 10px var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.nofff-qr-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.nofff-qr-pwa-hint {
+  font: 400 9.5px var(--font);
+  color: var(--dim-3);
+  margin-top: 6px;
+}

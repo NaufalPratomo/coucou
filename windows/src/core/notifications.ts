@@ -25,12 +25,14 @@ export const laptopNotificationHistory: WindowsNotification[] = [];
 export const phoneNotificationHistory: WindowsNotification[] = [];
 export let activeNotifBanner: WindowsNotification | null = null;
 let bannerTimeout: number | null = null;
+let notificationListener: ((n: WindowsNotification) => void) | null = null;
 
 export function isPhoneNotification(appName: string): boolean {
-  return /phone|telepon|link to windows/i.test(appName);
+  return /phone|telepon|link to windows|nofff/i.test(appName);
 }
 
 export function registerNotificationHandlers(onNewNotification?: (n: WindowsNotification) => void) {
+  notificationListener = onNewNotification ?? null;
   void onEvent<RawNotificationPayload>("windows-notification", (raw) => {
     const notif: WindowsNotification = {
       id: raw.id,
@@ -112,4 +114,48 @@ export function dismissNotificationBanner() {
   }
   activeNotifBanner = null;
   State.notify();
+}
+
+export function triggerLowBatteryBanner(level: number) {
+  const notif: WindowsNotification = {
+    id: 999990,
+    appName: "NOFFF",
+    title: "Low Battery",
+    body: `iPhone battery is at ${level}%. Please charge your phone.`,
+    timestampMs: Date.now(),
+  };
+  activeNotifBanner = notif;
+  try {
+    Sound.play("pop");
+  } catch {
+    // Audio autoplay may be constrained
+  }
+  State.notify();
+  notificationListener?.(notif);
+
+  if (bannerTimeout != null) {
+    window.clearTimeout(bannerTimeout);
+  }
+  bannerTimeout = window.setTimeout(() => {
+    if (activeNotifBanner?.id === notif.id) {
+      activeNotifBanner = null;
+      State.notify();
+    }
+  }, 6000);
+}
+
+export type NotificationCategory = "chat" | "shop" | "mail" | "other";
+
+export function classifyNotificationCategory(appName: string, title?: string, body?: string): NotificationCategory {
+  const combined = `${appName} ${title || ""} ${body || ""}`.toLowerCase();
+  if (/whatsapp|telegram|discord|messages|pesan|signal|line|wechat|slack|teams|skype|messenger/i.test(combined)) {
+    return "chat";
+  }
+  if (/tokopedia|shopee|lazada|blibli|amazon|gojek|grab|tiktok shop|bukalapak|aliexpress/i.test(combined)) {
+    return "shop";
+  }
+  if (/gmail|outlook|mail|surat|yahoo mail|spark|thunderbird/i.test(combined)) {
+    return "mail";
+  }
+  return "other";
 }

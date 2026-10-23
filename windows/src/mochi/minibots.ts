@@ -71,6 +71,12 @@ export function syncMiniBotStates(tasks: AgentTask[]) {
     if (!task) continue;
     mb.engine.setState(task.state);
     mb.engine.bodyColor = hexToRGB(task.color);
+    mb.engine.setPermanentEmote(task.emote ?? null);
+    if (task.miniEye) {
+      mb.engine.permanentEye = task.miniEye;
+      mb.engine.eyeOverride = task.miniEye;
+      mb.engine.eyeOverrideUntil = Number.POSITIVE_INFINITY;
+    }
   }
 }
 

@@ -114,7 +114,7 @@ export const STATE_SOUND: Partial<Record<BotStateName, string>> = {
 
 const EMOTE_EYE: Record<BotEmoteName, EyeShape> = {
   love: "heart", surprised: "dot", proud: "star", wink: "wink",
-  yawn: "tired", happy: "happy", annoyed: "line",
+  yawn: "tired", happy: "happy", annoyed: "line", worried: "tired", idle: "pill",
 };
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -475,6 +475,13 @@ export class BotEngine {
         this.eyeOverrideUntil = t + 0.8;
         setTimeout(() => Sound.play("annoyed"), 60);
         break;
+      case "worried":
+        this.eyeOverride = "tired";
+        this.eyeOverrideUntil = t + 0.8;
+        break;
+      case "idle":
+        this.eyeOverride = null;
+        break;
     }
   }
 
@@ -725,6 +732,15 @@ export class BotEngine {
           [0.4, 75, Ease.inOut], [-0.2, 70, Ease.inOut], [0, 140, Ease.out],
         ]);
         this.miniNextBehavior = n + 3.0 + Math.random() * 2.5;
+        break;
+      case "worried":
+        this.eyeOverride = "tired";
+        this.eyeOverrideUntil = n + 0.8;
+        this.miniNextBehavior = n + 3.0 + Math.random() * 2.5;
+        break;
+      case "idle":
+        this.eyeOverride = null;
+        this.miniNextBehavior = n + 2.0;
         break;
       case "wink":
         this.eyeOverride = "wink";

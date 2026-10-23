@@ -3,7 +3,7 @@
 // identically.
 
 import { h, svg, clear, dot } from "./dom";
-import { ICONS } from "./icons";
+import { ICONS, batteryIcon, getBatteryColor } from "./icons";
 import { Ticker } from "./ticker";
 import { State, type AgentTask } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
@@ -143,7 +143,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
     const isOverview = State.view === "overview" || State.view === "empty";
     const laptopCount = laptopNotificationHistory.length;
     const phoneCount = phoneNotificationHistory.length;
-    const key = State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}:${t.id === MESSAGES_ID ? laptopCount : (t.id === PHONE_ID ? phoneCount : 0)}`).join("|");
+    const batKey = State.phoneBattery ? `${State.phoneBattery.level}:${State.phoneBattery.connected}` : "nobat";
+    const key = `${batKey}:` + State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}:${t.emote ?? ""}:${t.id === MESSAGES_ID ? laptopCount : (t.id === PHONE_ID ? phoneCount : 0)}`).join("|");
     if (key === lastAgentTabsKey) return;
     lastAgentTabsKey = key;
     clear(agentTabs);
@@ -187,6 +188,22 @@ export function buildHeader(actions: ViewActions): ViewHost {
         const nameEl = h("span", { class: "agent-tab-name", text: task.name });
         nameEl.style.color = lighten(task.color, 0.3);
         tab.append(nameEl);
+
+        if (isPhone && State.phoneBattery) {
+          const bat = State.phoneBattery;
+          const batIcon = batteryIcon(bat.level, bat.connected, 12);
+          const batLevel = h("span", {
+            class: "agent-tab-bat",
+            style: `font-size:10px;font-weight:600;margin-left:3px;color:${getBatteryColor(bat.level, bat.connected)}`,
+            text: bat.connected ? `${bat.level}%` : t("Off"),
+          });
+          const batWrap = h("span", {
+            class: "agent-tab-bat-wrap",
+            title: `Battery ${bat.level}% (${bat.connected ? t("Connected") : "Disconnected"})`,
+            style: "display:inline-flex;align-items:center;gap:2px;margin-left:3px;",
+          }, batIcon, batLevel);
+          tab.append(batWrap);
+        }
       }
 
       agentTabs.append(tab);

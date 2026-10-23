@@ -3,6 +3,7 @@
 // `npm run dev` alone.
 
 import { invoke } from "@tauri-apps/api/core";
+export { invoke };
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { Settings } from "./state";
@@ -82,6 +83,13 @@ export interface CompanionPairing {
   url: string;
   token: string;
   qr: string;
+}
+
+/** Native BLE phone battery and connection state. */
+export interface RawPhoneBatteryPayload {
+  device_id: string;
+  level: number;
+  connected: boolean;
 }
 
 /** One session as the phone sees it; Rust stamps `updatedAt`. */
@@ -420,6 +428,8 @@ export const Bridge = {
   getLyrics: (title: string, artist: string) => call<string | null>("get_lyrics", { title, artist }),
   /** Pairing information for the iPhone Web Companion (PWA). */
   getCompanionPairing: () => call<CompanionPairing>("get_companion_pairing"),
+  /** Current phone battery and connection state */
+  getPhoneBattery: () => call<RawPhoneBatteryPayload | null>("get_phone_battery"),
 };
 
 export type SpotifyAction = "playPause" | "next" | "previous" | "seek" | "shuffle" | "repeat" | "volume";

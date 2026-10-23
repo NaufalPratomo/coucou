@@ -78,4 +78,61 @@ export const ICONS = {
   volume1: "M3.5 9.5h3L11 5.8v12.4l-4.5-3.7h-3zM14.5 9.6a3.4 3.4 0 0 1 0 4.8",
   volume2: "M3.5 9.5h3L11 5.8v12.4l-4.5-3.7h-3zM14.5 9.6a3.4 3.4 0 0 1 0 4.8M17 7.2a6.8 6.8 0 0 1 0 9.6",
   volume3: "M3.5 9.5h3L11 5.8v12.4l-4.5-3.7h-3zM14.5 9.6a3.4 3.4 0 0 1 0 4.8M17 7.2a6.8 6.8 0 0 1 0 9.6M19.4 4.8a10.2 10.2 0 0 1 0 14.4",
+  // qrcode
+  qrcode: "M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v3h-3v-3zm0 5h3v3h-3v-3zm-5-5h3v3h-3v-3zm0 5h3v3h-3v-3z",
 } as const;
+
+
+export function getBatteryColor(level: number, connected: boolean): string {
+  if (!connected) return "#64748B";
+  if (level > 40) return "#22C55E";
+  if (level > 20) return "#F59E0B";
+  return "#EF4444";
+}
+
+export function getBatteryFillWidth(level: number): number {
+  const clamped = Math.max(0, Math.min(100, level));
+  return Math.max(1, Math.min(10, Math.round((clamped / 100) * 10)));
+}
+
+export function batteryIcon(level: number, connected: boolean, size = 16): SVGElement {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  el.setAttribute("viewBox", "0 0 24 24");
+  el.setAttribute("width", `${size}`);
+  el.setAttribute("height", `${size}`);
+  el.setAttribute("fill", "none");
+  el.setAttribute("stroke", "currentColor");
+  el.setAttribute("stroke-width", "1.5");
+  el.classList.add("battery-svg");
+
+  const color = getBatteryColor(level, connected);
+  const fillWidth = getBatteryFillWidth(level);
+
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "2");
+  rect.setAttribute("y", "7");
+  rect.setAttribute("width", "16");
+  rect.setAttribute("height", "10");
+  rect.setAttribute("rx", "2.5");
+  rect.setAttribute("stroke", "currentColor");
+  rect.setAttribute("stroke-width", "1.5");
+  rect.setAttribute("fill", "none");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M19 10v4");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "1.5");
+  path.setAttribute("stroke-linecap", "round");
+
+  const fill = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  fill.setAttribute("x", "4");
+  fill.setAttribute("y", "9");
+  fill.setAttribute("width", `${fillWidth}`);
+  fill.setAttribute("height", "6");
+  fill.setAttribute("rx", "1");
+  fill.setAttribute("fill", color);
+  fill.setAttribute("stroke", "none");
+
+  el.append(rect, path, fill);
+  return el;
+}

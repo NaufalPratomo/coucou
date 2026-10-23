@@ -22,6 +22,7 @@ mod net;
 mod notes;
 mod notifications;
 mod openai_compat;
+mod phone_battery;
 mod phone_link;
 mod pipe;
 mod platform;
@@ -822,6 +823,7 @@ pub fn run() {
             phone_link::phone_chat_set_enabled,
             phone_link::phone_chat_set_models,
             get_companion_pairing,
+            phone_battery::get_phone_battery,
             recap::recap_history,
             recap::recap_prefs,
             recap::recap_set_enabled,
@@ -894,6 +896,7 @@ pub fn run() {
             flow::setup(&handle);
             notes::setup(&handle);
             notifications::setup(&handle);
+            phone_battery::setup(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // Where Tauri takes the drop itself (Linux), its paths are the

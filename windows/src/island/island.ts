@@ -15,7 +15,7 @@ import { State } from "../core/state";
 import { SPOTIFY_ID, Spotify, islandDances, spotifyPosition } from "../core/spotify";
 import { fetchLyrics, getCurrentLyric, type ParsedLyric } from "../core/lyrics";
 import {
-  activeNotifBanner, dismissNotificationBanner, type WindowsNotification,
+  activeNotifBanner, dismissNotificationBanner, isPhoneNotification, type WindowsNotification,
 } from "../core/notifications";
 import { BotEngine, hexToRGB } from "../mochi/engine";
 import { Greeting } from "../mochi/greeting";
@@ -1016,7 +1016,7 @@ export class Island {
     const notif = activeNotifBanner;
     if (!notif) return;
     clear(this.notifBanner);
-    const isPhone = /phone|telepon|link to windows/i.test(notif.appName);
+    const isPhone = isPhoneNotification(notif.appName);
     const badge = h("span", { class: isPhone ? "notif-badge phone" : "notif-badge" });
     if (isPhone) {
       badge.append(svg(ICONS.iphone, 10), h("span", { text: "NOFFF" }));
@@ -1323,6 +1323,7 @@ export class Island {
 
     syncMiniBotStates(State.tasks);
     this.engine.setState(State.effectiveState);
+    this.engine.setPermanentEmote(State.focusTask?.emote ?? null);
   }
 
   /** Applies settings coming from Rust at boot. */

@@ -97,6 +97,12 @@ export interface IntegrationInfo {
   configured: boolean;
 }
 
+export interface PhoneBatteryStatus {
+  deviceId: string;
+  level: number;
+  connected: boolean;
+}
+
 export interface Settings {
   soundEnabled: boolean;
   soundVolume: number;
@@ -253,6 +259,9 @@ class AppState {
    * there — so the island's own Mochi is hidden (AppState.mochiOnDesktop).
    */
   mochiOnDesktop = false;
+
+  /** Phone Battery & Connection status for NOFFF iPhone pill */
+  phoneBattery: PhoneBatteryStatus | null = null;
 
   /** Outfit shown on Mochi while the pointer rests on a wardrobe button. */
   wardrobePreview: Outfit | null = null;
