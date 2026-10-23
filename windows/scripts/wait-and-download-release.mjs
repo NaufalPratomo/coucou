@@ -73,6 +73,8 @@ async function main() {
     if (asset) {
       console.log(`Release found! Asset: ${asset.name}`);
       await downloadAsset(asset.browser_download_url);
+      console.log(`Stopping running coucou instance...`);
+      try { cp.execSync("taskkill /F /IM coucou.exe /T 2>nul", { shell: "cmd.exe" }); } catch {}
       console.log(`Installing ${ASSET_NAME} silently (/S)...`);
       try {
         cp.execSync(`"${TARGET_PATH}" /S`, { stdio: 'inherit' });

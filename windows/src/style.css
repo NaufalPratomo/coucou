@@ -2974,7 +2974,7 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 }
 
 .msg-card-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35;
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .msg-item {
@@ -3052,10 +3052,12 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 6px;
-  color: var(--dim-3);
+  min-height: 120px;
+  gap: 8px;
+  color: #64748b;
   text-align: center;
-  padding: 20px 0;
+  padding: 16px 0;
+  user-select: none;
 }
 
 .msg-empty-icon {
@@ -3124,13 +3126,13 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   align-items: center;
   gap: 5px;
   border: 1px solid rgba(10, 132, 255, 0.35);
-  border-radius: 6px;
-  padding: 3px 8px;
-  background: rgba(10, 132, 255, 0.15);
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: rgba(10, 132, 255, 0.14);
   color: #60a5fa;
   font: 500 10.5px var(--font);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease-out;
   margin-left: auto;
 }
 
@@ -3154,15 +3156,16 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 }
 
 .nofff-cat-chip {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  padding: 3px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--dim-2);
-  font: 500 10.5px var(--font);
+  padding: 3px 11px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  font: 500 11px var(--font);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease-out;
   white-space: nowrap;
+  outline: none;
 }
 
 .nofff-cat-chip:hover {
@@ -3171,10 +3174,11 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 }
 
 .nofff-cat-chip.active {
-  background: rgba(10, 132, 255, 0.2);
-  border-color: rgba(10, 132, 255, 0.5);
-  color: #60a5fa;
+  background: #0a84ff;
+  border-color: #0a84ff;
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.4);
 }
 
 .nofff-qr-modal {
