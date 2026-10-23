@@ -1,8 +1,8 @@
-// Messages & Notification Center View
+// Messages & Notification Center View (Laptop & iPhone NOFFF)
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
-import { notificationHistory } from "../core/notifications";
+import { laptopNotificationHistory, phoneNotificationHistory, isPhoneNotification } from "../core/notifications";
 import { tl } from "../i18n/i18n";
 
 function getAppColor(appName: string): string {
@@ -29,20 +29,29 @@ function formatRelativeTime(timestampMs: number): string {
   return `${Math.floor(diffHour / 24)}d ago`;
 }
 
-export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
+export function buildMessagesCard(kind: "laptop" | "phone" = "phone"): { el: HTMLElement; sync(): void } {
   const el = h("div", { class: "msg-card-container" });
   let lastKey = "";
+
+  const isPhone = kind === "phone";
+  const history = isPhone ? phoneNotificationHistory : laptopNotificationHistory;
+  const cardColor = isPhone ? "#0A84FF" : "#38BDF8";
+  const cardTitle = isPhone ? "NOFFF" : "Messages";
+  const cardSub = isPhone ? "iPhone Connected" : "Notifications";
+  const emptyText = isPhone ? "No new iPhone notifications" : "No new notifications";
+  const emptyIconSvg = isPhone ? ICONS.iphone : ICONS.bell;
+  const taskId = isPhone ? "integration_phone" : "integration_messages";
 
   function render() {
     clear(el);
 
     // Header
-    const headDot = dot("#0A84FF", 8);
-    const title = h("span", { class: "msg-card-title", text: "NOFFF" });
-    const sub = h("span", { class: "msg-card-sub", text: "iPhone Connected" });
+    const headDot = dot(cardColor, 8);
+    const title = h("span", { class: "msg-card-title", text: cardTitle });
+    const sub = h("span", { class: "msg-card-sub", text: cardSub });
     const countBadge = h("span", {
       class: "msg-card-count",
-      text: `${notificationHistory.length}`,
+      text: `${history.length}`,
     });
 
     const clearBtn = h(
@@ -51,7 +60,15 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
         class: "msg-clear-all-btn",
         onclick: (e) => {
           e.stopPropagation();
-          notificationHistory.length = 0;
+          history.length = 0;
+          const task = State.tasks.find((t) => t.id === taskId);
+          if (task) {
+            task.state = "idle";
+            task.emote = null;
+            task.pillBadge = null;
+            task.steps = [];
+            task.stepIndex = 0;
+          }
           State.notify();
         },
       },
@@ -65,29 +82,33 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
       title,
       sub,
       countBadge,
-      notificationHistory.length > 0 ? clearBtn : null,
+      history.length > 0 ? clearBtn : null,
     );
 
     // Content
     const body = h("div", { class: "msg-card-list" });
 
-    if (notificationHistory.length === 0) {
+    if (history.length === 0) {
       body.style.overflow = "hidden";
-      const emptyIcon = svg(ICONS.iphone, 28);
+      const emptyIcon = svg(emptyIconSvg, 28);
       emptyIcon.classList.add("msg-empty-icon");
-      const emptyText = h("div", { class: "msg-empty-text", text: "No new iPhone notifications" });
-      const emptyWrap = h("div", { class: "msg-empty-wrap" }, emptyIcon, emptyText);
+      const emptyTextEl = h("div", { class: "msg-empty-text", text: emptyText });
+      const emptyWrap = h("div", { class: "msg-empty-wrap" }, emptyIcon, emptyTextEl);
       body.append(emptyWrap);
     } else {
       body.style.overflow = "";
-      for (let i = 0; i < notificationHistory.length; i++) {
-        const notif = notificationHistory[i];
-        const appColor = getAppColor(notif.appName);
+      for (let i = 0; i < history.length; i++) {
+        const notif = history[i];
+        const isPhoneToast = isPhoneNotification(notif.appName);
+        const displayAppName = isPhoneToast
+          ? notif.title.split(":")[0].replace(/[^\w\s]/gi, "").trim() || "iPhone"
+          : notif.appName;
+        const appColor = getAppColor(displayAppName);
 
         const badge = h("span", {
           class: "msg-item-badge",
           style: `background: ${appColor}22; color: ${appColor}; border: 1px solid ${appColor}44`,
-          text: notif.appName,
+          text: displayAppName,
         });
 
         const itemTitle = h("span", { class: "msg-item-title", text: notif.title });
@@ -99,7 +120,17 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
             class: "msg-item-del",
             onclick: (e) => {
               e.stopPropagation();
-              notificationHistory.splice(i, 1);
+              history.splice(i, 1);
+              if (history.length === 0) {
+                const task = State.tasks.find((t) => t.id === taskId);
+                if (task) {
+                  task.state = "idle";
+                  task.emote = null;
+                  task.pillBadge = null;
+                  task.steps = [];
+                  task.stepIndex = 0;
+                }
+              }
               State.notify();
             },
           },
@@ -120,7 +151,7 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
   return {
     el,
     sync() {
-      const key = `${notificationHistory.length}:${notificationHistory[0]?.id ?? 0}:${notificationHistory[0]?.timestampMs ?? 0}`;
+      const key = `${history.length}:${history[0]?.id ?? 0}:${history[0]?.timestampMs ?? 0}`;
       if (key !== lastKey) {
         lastKey = key;
         render();
@@ -129,15 +160,25 @@ export function buildMessagesCard(): { el: HTMLElement; sync(): void } {
   };
 }
 
-export function buildMessagesPill(onFocus: () => void): { el: HTMLElement; sync(): void } {
+export function buildMessagesPill(
+  kindOrOnFocus: ("laptop" | "phone") | (() => void) = "phone",
+  maybeOnFocus?: () => void,
+): { el: HTMLElement; sync(): void } {
+  const isPhoneKind = typeof kindOrOnFocus === "string" ? kindOrOnFocus === "phone" : true;
+  const onFocus = typeof kindOrOnFocus === "function" ? kindOrOnFocus : (maybeOnFocus ?? (() => {}));
+
+  const pillColor = isPhoneKind ? "#0A84FF" : "#38BDF8";
+  const pillName = isPhoneKind ? "NOFFF" : "Messages";
+  const history = isPhoneKind ? phoneNotificationHistory : laptopNotificationHistory;
+
   const el = h("div", { class: "int-pill msg-pill", onclick: onFocus });
   let lastKey = "";
 
   function render() {
     clear(el);
-    const d = dot("#0A84FF", 7);
-    const name = h("span", { class: "int-name", text: "NOFFF" });
-    const count = notificationHistory.length;
+    const d = dot(pillColor, 7);
+    const name = h("span", { class: "int-name", text: pillName });
+    const count = history.length;
     const countText = count > 0 ? (count === 1 ? "1 notification" : `${count} notifications`) : tl("Connected");
     const sub = h("span", { class: "int-sub", text: countText });
     el.append(d, name, sub);
@@ -146,7 +187,7 @@ export function buildMessagesPill(onFocus: () => void): { el: HTMLElement; sync(
   return {
     el,
     sync() {
-      const key = `${notificationHistory.length}`;
+      const key = `${history.length}`;
       if (key !== lastKey) {
         lastKey = key;
         render();

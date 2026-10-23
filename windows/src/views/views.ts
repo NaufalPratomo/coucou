@@ -24,8 +24,8 @@ import { buildWardrobe } from "./wardrobe";
 import { buildSpotifyCard, buildSpotifyPill, type SpotifyPillHost } from "./spotify";
 import { SPOTIFY_ID } from "../core/spotify";
 import { buildMessagesCard, buildMessagesPill } from "./messages";
-import { MESSAGES_ID } from "../core/pills";
-import { notificationHistory } from "../core/notifications";
+import { MESSAGES_ID, PHONE_ID } from "../core/pills";
+import { laptopNotificationHistory, phoneNotificationHistory } from "../core/notifications";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
 import type { ViewCommand } from "../island/shortcuts";
@@ -141,8 +141,9 @@ export function buildHeader(actions: ViewActions): ViewHost {
   function syncAgentTabs() {
     const focusId = State.focusTask?.id;
     const isOverview = State.view === "overview" || State.view === "empty";
-    const notifCount = notificationHistory.length;
-    const key = State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}:${t.id === MESSAGES_ID ? notifCount : 0}`).join("|");
+    const laptopCount = laptopNotificationHistory.length;
+    const phoneCount = phoneNotificationHistory.length;
+    const key = State.tasks.map((t) => `${t.id}:${t.color}:${t.name}:${t.id === focusId}:${isOverview}:${t.state}:${t.id === MESSAGES_ID ? laptopCount : (t.id === PHONE_ID ? phoneCount : 0)}`).join("|");
     if (key === lastAgentTabsKey) return;
     lastAgentTabsKey = key;
     clear(agentTabs);
@@ -151,12 +152,16 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const isFocused = task.id === focusId && isOverview;
       const mini = createMiniBot(task, 16, task.id === SPOTIFY_ID ? () => State.spotifyPlaying : undefined);
       
+      const isPhone = task.id === PHONE_ID;
+      const isMsg = task.id === MESSAGES_ID;
+      const tabClass = isFocused
+        ? (isPhone ? "agent-tab active nofff-tab" : (isMsg ? "agent-tab active msg-tab" : "agent-tab active"))
+        : (isPhone ? "agent-tab nofff-tab" : (isMsg ? "agent-tab msg-tab" : "agent-tab"));
+
       const tab = h(
         "button",
         {
-          class: isFocused
-            ? (task.id === MESSAGES_ID ? "agent-tab active nofff-tab" : "agent-tab active")
-            : (task.id === MESSAGES_ID ? "agent-tab nofff-tab" : "agent-tab"),
+          class: tabClass,
           title: task.name,
           onclick: () => {
             actions.blip();
@@ -167,8 +172,11 @@ export function buildHeader(actions: ViewActions): ViewHost {
         mini,
       );
 
-      if (task.id === MESSAGES_ID && notifCount > 0) {
-        const badge = h("span", { class: "mochi-unread-badge", text: notifCount > 9 ? "9+" : `${notifCount}` });
+      if (isMsg && laptopCount > 0) {
+        const badge = h("span", { class: "mochi-unread-badge msg-badge", text: laptopCount > 9 ? "9+" : `${laptopCount}` });
+        tab.append(badge);
+      } else if (isPhone && phoneCount > 0) {
+        const badge = h("span", { class: "mochi-unread-badge phone-badge", text: phoneCount > 9 ? "9+" : `${phoneCount}` });
         tab.append(badge);
       }
 
@@ -254,8 +262,10 @@ function buildOverview(actions: ViewActions): ViewHost {
   // runs on, and a slider being dragged must not be rebuilt under the pointer.
   const spotifyCard = buildSpotifyCard();
   let spotifyPill: SpotifyPillHost | null = null;
-  const messagesCard = buildMessagesCard();
+  const messagesCard = buildMessagesCard("laptop");
   let messagesPill: { el: HTMLElement; sync(): void } | null = null;
+  const phoneCard = buildMessagesCard("phone");
+  let phonePill: { el: HTMLElement; sync(): void } | null = null;
 
   const el = h("div", { class: "view overview" },
     h("div", { class: "left" }, left),
@@ -265,7 +275,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   let pillIds = "";
   let detailOpen = false;
   let lastFocus: string | null = null;
-  let mode: "ticker" | "card" | "plan" | "diff" | "spotify" | "messages" | null = null;
+  let mode: "ticker" | "card" | "plan" | "diff" | "spotify" | "messages" | "phone" | null = null;
   let cardKey = "";
   /** The list row highlighted at the last sync, to scroll only when it moves. */
   let shownSelection: number | null = null;
@@ -430,6 +440,14 @@ function buildOverview(actions: ViewActions): ViewHost {
           cardKey = "";
         }
         messagesCard.sync();
+      } else if (task && task.id === PHONE_ID) {
+        if (mode !== "phone") {
+          clear(leftBody);
+          leftBody.append(phoneCard.el);
+          mode = "phone";
+          cardKey = "";
+        }
+        phoneCard.sync();
       } else if (task) {
         const info = State.integrations[task.id];
         const key = [
@@ -445,7 +463,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
 
-      jump.style.display = detailOpen || mode === "plan" || mode === "diff" || mode === "messages" ? "none" : "";
+      jump.style.display = detailOpen || mode === "plan" || mode === "diff" || mode === "messages" || mode === "phone" ? "none" : "";
 
       // Ctrl+↓ Ctrl+↑ walk the open GitHub list (cardItemCount / cardSelection).
       const rows = mode === "card" ? listRows(leftBody) : [];
@@ -461,13 +479,17 @@ function buildOverview(actions: ViewActions): ViewHost {
         clear(pills);
         spotifyPill = null;
         messagesPill = null;
+        phonePill = null;
         for (const t of others) {
           if (t.id === SPOTIFY_ID) {
             spotifyPill = buildSpotifyPill(t, () => actions.setFocus(t.id));
             pills.append(spotifyPill.el);
           } else if (t.id === MESSAGES_ID) {
-            messagesPill = buildMessagesPill(() => actions.setFocus(t.id));
+            messagesPill = buildMessagesPill("laptop", () => actions.setFocus(t.id));
             pills.append(messagesPill.el);
+          } else if (t.id === PHONE_ID) {
+            phonePill = buildMessagesPill("phone", () => actions.setFocus(t.id));
+            pills.append(phonePill.el);
           } else {
             pills.append(buildPill(t, actions));
           }
@@ -476,6 +498,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       }
       spotifyPill?.sync();
       messagesPill?.sync();
+      phonePill?.sync();
     },
   };
 }

@@ -3087,3 +3087,8 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   border-color: rgba(10, 132, 255, 0.4);
   box-shadow: 0 0 8px rgba(10, 132, 255, 0.25);
 }
+
+.agent-tab.msg-tab:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+}

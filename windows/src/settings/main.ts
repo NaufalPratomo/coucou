@@ -788,6 +788,9 @@ const INTEGRATIONS: IntegrationDef[] = [
   // Nothing to enter: Messages are intercepted from Windows toast notifications.
   { id: "integration_messages", name: "Messages", color: "#38BDF8", fields: [],
     hint: "Windows toast notifications & message interceptor in dynamic island." },
+  // Nothing to enter: Phone Link notifications forwarded from Apple iPhone.
+  { id: "integration_phone", name: "NOFFF", color: "#0A84FF", fields: [],
+    hint: "Apple iPhone Bluetooth LE & Phone Link notifications in dynamic island." },
 ];
 
 const MAX_ACTIVE = MAX_DECLARED;

@@ -21,8 +21,14 @@ export interface RawNotificationPayload {
 
 const MAX_HISTORY = 30;
 export const notificationHistory: WindowsNotification[] = [];
+export const laptopNotificationHistory: WindowsNotification[] = [];
+export const phoneNotificationHistory: WindowsNotification[] = [];
 export let activeNotifBanner: WindowsNotification | null = null;
 let bannerTimeout: number | null = null;
+
+export function isPhoneNotification(appName: string): boolean {
+  return /phone|telepon|link to windows/i.test(appName);
+}
 
 export function registerNotificationHandlers(onNewNotification?: (n: WindowsNotification) => void) {
   void onEvent<RawNotificationPayload>("windows-notification", (raw) => {
@@ -44,16 +50,37 @@ export function registerNotificationHandlers(onNewNotification?: (n: WindowsNoti
       notificationHistory.pop();
     }
 
-    // Update NOFFF iPhone task state if present
-    const msgTask = State.tasks.find((t) => t.id === "integration_messages");
-    if (msgTask) {
-      msgTask.name = "NOFFF";
-      msgTask.color = "#0A84FF";
-      msgTask.state = "thinking";
-      msgTask.emote = "surprised";
-      msgTask.pillBadge = "approval";
-      msgTask.steps = [notif.appName, `${notif.title}: ${notif.body}`];
-      msgTask.stepIndex = 1;
+    const isPhone = isPhoneNotification(notif.appName);
+    if (isPhone) {
+      phoneNotificationHistory.unshift(notif);
+      while (phoneNotificationHistory.length > MAX_HISTORY) {
+        phoneNotificationHistory.pop();
+      }
+      const phoneTask = State.tasks.find((t) => t.id === "integration_phone");
+      if (phoneTask) {
+        phoneTask.name = "NOFFF";
+        phoneTask.color = "#0A84FF";
+        phoneTask.state = "thinking";
+        phoneTask.emote = "surprised";
+        phoneTask.pillBadge = "approval";
+        phoneTask.steps = [notif.appName, `${notif.title}: ${notif.body}`];
+        phoneTask.stepIndex = 1;
+      }
+    } else {
+      laptopNotificationHistory.unshift(notif);
+      while (laptopNotificationHistory.length > MAX_HISTORY) {
+        laptopNotificationHistory.pop();
+      }
+      const msgTask = State.tasks.find((t) => t.id === "integration_messages");
+      if (msgTask) {
+        msgTask.name = "Messages";
+        msgTask.color = "#38BDF8";
+        msgTask.state = "thinking";
+        msgTask.emote = "surprised";
+        msgTask.pillBadge = "approval";
+        msgTask.steps = [notif.appName, `${notif.title}: ${notif.body}`];
+        msgTask.stepIndex = 1;
+      }
     }
 
     // Set active banner & play gentle pop sound

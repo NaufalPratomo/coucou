@@ -133,12 +133,16 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
   // Media session player through MPRIS on Linux and the system media controls on Windows
   { id: "integration_spotify", name: "Music", color: "#1DB954", category: "service",
     subtitle: "Media Player", source: "n8n", support: "yes", connect: none },
-  // Windows Toast Notification Interceptor & Messages Center
-  { id: "integration_messages", name: "NOFFF", color: "#0A84FF", category: "service",
+  // Windows Toast Notification Interceptor & Messages Center (Laptop)
+  { id: "integration_messages", name: "Messages", color: "#38BDF8", category: "service",
+    subtitle: "Notifications", source: "n8n", support: "yes", connect: none },
+  // Apple iPhone Bluetooth LE & Phone Link (NOFFF)
+  { id: "integration_phone", name: "NOFFF", color: "#0A84FF", category: "service",
     subtitle: "iPhone Connected", source: "n8n", support: "yes", connect: none },
 ];
 
 export const MESSAGES_ID = "integration_messages";
+export const PHONE_ID = "integration_phone";
 
 /** The always-on pill unless the user picks another workspace tool. */
 export const DEFAULT_MAIN_PILL = "integration_claude";
@@ -186,7 +190,8 @@ export function sessionSubtitle(id: string): string {
     case "agent_hermes": return "Hermes";
     case "agent_claude-desktop": return "Claude Desktop";
     case "integration_spotify": return "Music";
-    case "integration_messages": return "NOFFF";
+    case "integration_messages": return "Messages";
+    case "integration_phone": return "NOFFF";
     default: return N_("Agent");
   }
 }
@@ -218,6 +223,9 @@ export function sanitizeDeclared(d: Declared, os: HostOs = HOST_OS): Declared {
   }
   if (offered.has("integration_messages") && !activeIntegrations.includes("integration_messages")) {
     activeIntegrations.push("integration_messages");
+  }
+  if (offered.has("integration_phone") && !activeIntegrations.includes("integration_phone")) {
+    activeIntegrations.push("integration_phone");
   }
   return { mainPill, activeIntegrations };
 }
