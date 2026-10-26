@@ -451,7 +451,6 @@ export function buildSpotifyCard(): SpotifyCardHost {
             "div",
             {
               class: "lyric-line",
-              text: line.text,
               title: line.text,
               onclick: (e) => {
                 e.stopPropagation();

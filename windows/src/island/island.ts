@@ -667,7 +667,16 @@ export class Island {
       h = 246;
     }
     if (State.mode === "compact" && activeNotifBanner != null) {
-      w = 380;
+      const notifText = `${activeNotifBanner.appName} ${activeNotifBanner.title} ${activeNotifBanner.body}`;
+      w = Math.min(540, Math.max(460, Math.round(150 + notifText.length * 6.5)));
+    } else if (
+      State.mode === "compact" &&
+      State.spotifyPlaying &&
+      this.compactLyrics.classList.contains("on") &&
+      this.lastCompactLyricText
+    ) {
+      const lyricLen = this.lastCompactLyricText.length;
+      w = Math.min(520, Math.max(420, Math.round(140 + lyricLen * 7.2)));
     }
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     return { w, h, r };
@@ -966,6 +975,8 @@ export class Island {
     if (!track || !s.playing) {
       if (this.compactLyrics.classList.contains("on")) {
         this.compactLyrics.classList.remove("on");
+        this.lastCompactLyricText = "";
+        this.animateGeometry(true);
       }
       return;
     }
@@ -985,16 +996,20 @@ export class Island {
     const displayText = lineText || `${track.title}${track.artist ? ` · ${track.artist}` : ""}`;
 
     if (displayText !== this.lastCompactLyricText) {
+      const prevLen = this.lastCompactLyricText.length;
       this.lastCompactLyricText = displayText;
       clear(this.compactLyrics);
       const icon = svg(ICONS.musicNote, 10);
       icon.classList.add("lyric-icon");
       const textEl = h("span", { class: "lyric-text", text: displayText });
       this.compactLyrics.append(icon, textEl);
-    }
-
-    if (!this.compactLyrics.classList.contains("on")) {
+      if (!this.compactLyrics.classList.contains("on")) {
+        this.compactLyrics.classList.add("on");
+      }
+      this.animateGeometry(displayText.length < prevLen);
+    } else if (!this.compactLyrics.classList.contains("on")) {
       this.compactLyrics.classList.add("on");
+      this.animateGeometry(false);
     }
   }
 
@@ -1034,6 +1049,7 @@ export class Island {
       "button",
       {
         class: "notif-close",
+        title: "Dismiss",
         onclick: (e) => {
           e.stopPropagation();
           dismissNotificationBanner();
@@ -1051,6 +1067,7 @@ export class Island {
 
     if (!this.notifBanner.classList.contains("on")) {
       this.notifBanner.classList.add("on");
+      this.animateGeometry(false);
     }
   }
 
@@ -1122,6 +1139,7 @@ export class Island {
       } else if (this.compactLyrics.classList.contains("on")) {
         this.compactLyrics.classList.remove("on");
         this.lastCompactLyricText = "";
+        this.animateGeometry(true);
       }
     }
 

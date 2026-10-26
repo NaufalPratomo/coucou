@@ -344,3 +344,42 @@ test('11. Modal dismisses on backdrop click', () => {
 
   assert.equal(card.el.querySelector('.nofff-qr-modal'), null, 'Modal dismissed on backdrop click');
 });
+
+test('12. Antislop compact layout & styling prevents Mochi and mini bot overlap', async () => {
+  const fs = await import('node:fs');
+  const css = fs.readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+
+  // Verify notif-banner has clearance on left (clearing Mochi) and right (clearing mini bots)
+  assert.match(css, /\.notif-banner\s*\{[^}]*left:\s*62px;/s, 'notif-banner clears Mochi at left: 62px');
+  assert.match(css, /\.notif-banner\s*\{[^}]*right:\s*64px;/s, 'notif-banner clears mini bots at right: 64px');
+
+  // Verify compact-lyrics has clearance on left and right
+  assert.match(css, /\.compact-lyrics\s*\{[^}]*left:\s*62px;/s, 'compact-lyrics clears Mochi at left: 62px');
+  assert.match(css, /\.compact-lyrics\s*\{[^}]*right:\s*64px;/s, 'compact-lyrics clears mini bots at right: 64px');
+
+  // Verify refined active lyric line
+  assert.match(css, /\.lyric-line\.active\s*\{[^}]*font-size:\s*12\.5px;/s, 'active lyric has refined 12.5px font');
+});
+
+test('13. Compact island target width expands for notifications and lyrics', async () => {
+  const fs = await import('node:fs');
+  const islandCode = fs.readFileSync(new URL('../src/island/island.ts', import.meta.url), 'utf8');
+
+  // Notification target width expands smoothly between 460 and 540px
+  assert.ok(islandCode.includes('w = Math.min(540, Math.max(460,'), 'notif banner dynamically expands to 460-540px');
+
+  // Lyrics target width expands smoothly between 420 and 520px
+  assert.ok(islandCode.includes('w = Math.min(520, Math.max(420,'), 'compact lyrics dynamically expands to 420-520px');
+});
+
+test('14. Lyric lines render clean single text without duplicate word repetitions', async () => {
+  const fs = await import('node:fs');
+  const spotifyCode = fs.readFileSync(new URL('../src/views/spotify.ts', import.meta.url), 'utf8');
+
+  // Verify lineEl does not duplicate text via attrs.text and children
+  assert.doesNotMatch(
+    spotifyCode,
+    /class:\s*"lyric-line",\s*text:\s*line\.text/s,
+    'lyric-line does not pass duplicate text in attributes',
+  );
+});
