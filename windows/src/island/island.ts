@@ -12,7 +12,7 @@ import {
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
-import { MESSAGES_ID, PHONE_ID } from "../core/pills";
+import { MESSAGES_ID, PHONE_ID, GLANCE_ID, CALENDAR_ID } from "../core/pills";
 import { SPOTIFY_ID, Spotify, islandDances, spotifyPosition } from "../core/spotify";
 import { fetchLyrics, getCurrentLyric, type ParsedLyric } from "../core/lyrics";
 import {
@@ -666,6 +666,13 @@ export class Island {
     if (State.mode === "expanded" && (State.view === "overview" || State.view === "empty") && (State.focusTask?.id === PHONE_ID || State.focusTask?.id === MESSAGES_ID)) {
       h = 246;
     }
+    if (
+      State.mode === "expanded" &&
+      (State.view === "overview" || State.view === "empty") &&
+      (State.focusTask?.id === SPOTIFY_ID || State.focusId === SPOTIFY_ID)
+    ) {
+      w = 690;
+    }
     if (State.mode === "compact" && activeNotifBanner != null) {
       const notifText = `${activeNotifBanner.appName} ${activeNotifBanner.title} ${activeNotifBanner.body}`;
       w = Math.min(540, Math.max(460, Math.round(150 + notifText.length * 6.5)));
@@ -676,7 +683,7 @@ export class Island {
       this.lastCompactLyricText
     ) {
       const lyricLen = this.lastCompactLyricText.length;
-      w = Math.min(520, Math.max(420, Math.round(140 + lyricLen * 7.2)));
+      w = Math.min(540, Math.max(440, Math.round(140 + lyricLen * 7.5)));
     }
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     return { w, h, r };
@@ -1238,7 +1245,11 @@ export class Island {
     // the wardrobe is open (BotCanvasView.showOutfit, macOS).
     // In the wardrobe the hovered outfit swaps in at once, without the drop-in.
     const inWardrobe = State.mode === "expanded" && State.view === "wardrobe";
-    const mainFocused = State.focusId == null || State.focusId === State.mainPillId;
+    const mainFocused =
+      State.focusId == null ||
+      State.focusId === State.mainPillId ||
+      State.focusId === GLANCE_ID ||
+      State.focusId === CALENDAR_ID;
     const showOutfit = mainFocused || State.mode !== "expanded" || inWardrobe;
     const outfit = State.wardrobePreview ?? this.seasons.get(parseOutfit(State.settings.mochiOutfit));
     this.engine.setOutfit(showOutfit ? outfit : "none", !inWardrobe);

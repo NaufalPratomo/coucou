@@ -303,7 +303,13 @@ class AppState {
     return this.tasks.filter((t) => t.id !== this.focusId);
   }
 
-  setFocus(id: string) {
+  setFocus(id: string | null) {
+    if (id === GLANCE_ID || id === CALENDAR_ID || id == null) {
+      this.focusId = id;
+      this.showingPlanDetail = false;
+      this.notify();
+      return;
+    }
     const t = this.tasks.find((x) => x.id === id);
     if (!t) return;
     this.focusId = id;
@@ -431,7 +437,14 @@ class AppState {
       if (def) t.color = pillColor(def.id, def.color, this.settings.pillColors);
     }
     this.tasks = orderPills(this.tasks, d.mainPill);
-    if (!this.focusId || !this.tasks.some((t) => t.id === this.focusId)) this.focusId = d.mainPill;
+    if (
+      !this.focusId ||
+      (!this.tasks.some((t) => t.id === this.focusId) &&
+        this.focusId !== GLANCE_ID &&
+        this.focusId !== CALENDAR_ID)
+    ) {
+      this.focusId = d.mainPill;
+    }
     this.notify();
   }
 

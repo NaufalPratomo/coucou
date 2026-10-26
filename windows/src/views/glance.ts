@@ -65,6 +65,7 @@ export async function fetchLiveWeather(): Promise<WeatherData | null> {
 export interface GlanceCardHost {
   el: HTMLElement;
   sync(): void;
+  tick(nowMs: number): boolean;
   setSlide(slide: 1 | 2): void;
 }
 
@@ -121,81 +122,107 @@ export function buildGlanceCard(): GlanceCardHost {
 
   // Weather pre-fetch
   void fetchLiveWeather().then(() => {
-    if (activeSlide === 1) render();
+    if (activeSlide === 1) updateWeatherUI();
   });
 
-  function renderSlide1(now: Date) {
-    clear(slideContent);
+  // Slide 1 elements (built once, reused smoothly)
+  const weatherRow = h("div", { class: "glance-weather-row" });
+  const timeRow = h("div", { class: "glance-time-row" });
+  const clockEl = h("span", { class: "glance-clock" });
+  const secEl = h("span", { class: "glance-sec" });
+  timeRow.append(clockEl, secEl);
 
-    // Weather widget row
-    const weatherRow = h("div", { class: "glance-weather-row" });
+  const dateRow = h("div", { class: "glance-date-row" });
+  const dateEl = h("span", { class: "glance-date" });
+  dateRow.append(dateEl);
+
+  const toCalBtn = h(
+    "button",
+    {
+      class: "glance-switch-link",
+      onclick: () => {
+        activeSlide = 2;
+        State.focusId = CALENDAR_ID;
+        render();
+        State.notify();
+      },
+    },
+    h("span", { text: "Lihat Kalender" }),
+    svg(ICONS.chevronRight, 10),
+  );
+
+  const slide1Card = h("div", { class: "glance-slide slide-glance" }, weatherRow, timeRow, dateRow, toCalBtn);
+
+  let currentRenderedSlide: 1 | 2 | 0 = 0;
+  let lastSecond = -1;
+  let lastDayNum = -1;
+  let lastWeatherKey = "";
+
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const months = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+  ];
+
+  function updateWeatherUI() {
+    const key = cachedWeather ? `${cachedWeather.city}:${cachedWeather.temp}:${cachedWeather.condition}` : "loading";
+    if (key === lastWeatherKey) return;
+    lastWeatherKey = key;
+    clear(weatherRow);
     if (cachedWeather) {
       const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 13);
       wIcon.classList.add("weather-svg-icon");
       const cityEl = h("span", { class: "weather-city", text: cachedWeather.city });
-      const dotEl = h("span", { class: "glance-dot", text: "·" });
+      const dotEl = h("span", { class: "glance-dot", text: " · " });
       const tempEl = h("span", { class: "weather-temp", text: `${cachedWeather.temp}°C` });
       const condEl = h("span", { class: "weather-cond", text: cachedWeather.condition });
       weatherRow.append(wIcon, cityEl, dotEl, tempEl, condEl);
     } else {
       const loadIcon = svg(ICONS.cloudSun, 13);
-      weatherRow.append(loadIcon, h("span", { class: "weather-city", text: "Memuat cuaca kota..." }));
+      loadIcon.classList.add("weather-svg-icon");
+      weatherRow.append(loadIcon, h("span", { class: "weather-city", text: "Memuat cuaca..." }));
+    }
+  }
+
+  function updateClockAndDate(now: Date, force = false) {
+    const sec = now.getSeconds();
+    if (sec !== lastSecond || force) {
+      lastSecond = sec;
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      clockEl.textContent = `${hours}:${minutes}`;
+      secEl.textContent = `:${String(sec).padStart(2, "0")}`;
     }
 
-    // Time row (large digital clock + seconds)
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const dayNum = now.getDate();
+    if (dayNum !== lastDayNum || force) {
+      lastDayNum = dayNum;
+      const dayName = days[now.getDay()];
+      const monthName = months[now.getMonth()];
+      const yearNum = now.getFullYear();
+      dateEl.textContent = `${dayName}, ${dayNum} ${monthName} ${yearNum}`;
+    }
+  }
 
-    const timeRow = h("div", { class: "glance-time-row" });
-    const clockEl = h("span", { class: "glance-clock", text: `${hours}:${minutes}` });
-    const secEl = h("span", { class: "glance-sec", text: `:${seconds}` });
-    timeRow.append(clockEl, secEl);
-
-    // Simple date row
-    const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-    const months = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-    ];
-    const dayName = days[now.getDay()];
-    const dateNum = now.getDate();
-    const monthName = months[now.getMonth()];
-    const yearNum = now.getFullYear();
-
-    const dateRow = h("div", { class: "glance-date-row" });
-    const dateEl = h("span", { class: "glance-date", text: `${dayName}, ${dateNum} ${monthName} ${yearNum}` });
-    dateRow.append(dateEl);
-
-    // Switch to calendar hint button
-    const toCalBtn = h(
-      "button",
-      {
-        class: "glance-switch-link",
-        onclick: () => {
-          activeSlide = 2;
-          State.focusId = CALENDAR_ID;
-          render();
-          State.notify();
-        },
-      },
-      h("span", { text: "Lihat Kalender" }),
-      svg(ICONS.chevronRight, 10),
-    );
-
-    const slide1Card = h("div", { class: "glance-slide slide-glance" }, weatherRow, timeRow, dateRow, toCalBtn);
-    slideContent.append(slide1Card);
+  function renderSlide1(now: Date) {
+    if (currentRenderedSlide !== 1) {
+      clear(slideContent);
+      slideContent.append(slide1Card);
+      currentRenderedSlide = 1;
+      updateWeatherUI();
+      updateClockAndDate(now, true);
+    } else {
+      updateWeatherUI();
+      updateClockAndDate(now, false);
+    }
   }
 
   function renderSlide2() {
     clear(slideContent);
+    currentRenderedSlide = 2;
 
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
-    const months = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-    ];
 
     // Calendar Header: < Month Year >
     const prevBtn = h(
@@ -205,7 +232,7 @@ export function buildGlanceCard(): GlanceCardHost {
         title: "Bulan Sebelumnya",
         onclick: () => {
           calendarMonth = new Date(year, month - 1, 1);
-          render();
+          renderSlide2();
         },
       },
       svg(ICONS.chevronLeft, 11),
@@ -218,7 +245,7 @@ export function buildGlanceCard(): GlanceCardHost {
         title: "Kembali ke Bulan Sekarang",
         onclick: () => {
           calendarMonth = new Date();
-          render();
+          renderSlide2();
         },
       },
       `${months[month]} ${year}`,
@@ -231,7 +258,7 @@ export function buildGlanceCard(): GlanceCardHost {
         title: "Bulan Berikutnya",
         onclick: () => {
           calendarMonth = new Date(year, month + 1, 1);
-          render();
+          renderSlide2();
         },
       },
       svg(ICONS.chevronRight, 11),
@@ -311,9 +338,17 @@ export function buildGlanceCard(): GlanceCardHost {
     sync() {
       render();
     },
+    tick(_nowMs: number): boolean {
+      if (activeSlide !== 1) return false;
+      const now = new Date();
+      updateClockAndDate(now, false);
+      return false;
+    },
     setSlide(slide: 1 | 2) {
-      activeSlide = slide;
-      render();
+      if (activeSlide !== slide) {
+        activeSlide = slide;
+        render();
+      }
     },
   };
 }

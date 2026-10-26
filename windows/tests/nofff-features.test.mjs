@@ -368,8 +368,8 @@ test('13. Compact island target width expands for notifications and lyrics', asy
   // Notification target width expands smoothly between 460 and 540px
   assert.ok(islandCode.includes('w = Math.min(540, Math.max(460,'), 'notif banner dynamically expands to 460-540px');
 
-  // Lyrics target width expands smoothly between 420 and 520px
-  assert.ok(islandCode.includes('w = Math.min(520, Math.max(420,'), 'compact lyrics dynamically expands to 420-520px');
+  // Lyrics target width expands smoothly between 440 and 540px
+  assert.ok(islandCode.includes('w = Math.min(540, Math.max(440,'), 'compact lyrics dynamically expands to 440-540px');
 });
 
 test('14. Lyric lines render clean single text without duplicate word repetitions', async () => {
@@ -403,4 +403,40 @@ test('16. Mini Monthly Calendar (Slide 2) renders monthly grid with today highli
   assert.ok(glance.el.querySelector('.slide-calendar'), 'Calendar slide is rendered');
   assert.ok(glance.el.querySelector('.cal-month-title'), 'Month & year title exists');
   assert.ok(glance.el.querySelector('.cal-cell.today'), 'Today cell is highlighted');
+});
+
+test('17. Clicking Time / Calendar tabs switches focus to GLANCE_ID and CALENDAR_ID properly', async () => {
+  const { State } = await import('../src/core/state.ts');
+  const { GLANCE_ID, CALENDAR_ID } = await import('../src/core/pills.ts');
+
+  // Set focus to GLANCE_ID
+  State.setFocus(GLANCE_ID);
+  assert.equal(State.focusId, GLANCE_ID);
+  assert.equal(State.focusTask, null, 'focusTask returns null for virtual glance so overview renders glanceCard');
+
+  // Set focus to CALENDAR_ID
+  State.setFocus(CALENDAR_ID);
+  assert.equal(State.focusId, CALENDAR_ID);
+  assert.equal(State.focusTask, null, 'focusTask returns null for virtual calendar so overview renders glanceCard');
+
+  // Load integrations does not overwrite GLANCE_ID or CALENDAR_ID
+  State.loadIntegrationTasks();
+  assert.equal(State.focusId, CALENDAR_ID);
+});
+
+test('18. Spotify expanded island is 690px and lyrics column has wrapping without ellipsis', async () => {
+  const fs = await import('node:fs');
+  const islandCode = fs.readFileSync(new URL('../src/island/island.ts', import.meta.url), 'utf8');
+  const styleCss = fs.readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+
+  // Expanded Spotify width is 690px
+  assert.ok(islandCode.includes('w = 690;'), 'expanded island width for Spotify is 690px');
+
+  // Lyric lines wrap gracefully without ellipsis
+  assert.match(styleCss, /\.lyric-line\s*\{[^}]*white-space:\s*normal;/s, 'lyric line wraps with white-space: normal');
+  assert.match(styleCss, /\.lyric-line\s*\{[^}]*word-break:\s*break-word;/s, 'lyric line breaks words gracefully');
+  assert.doesNotMatch(styleCss, /\.lyric-line\s*\{[^}]*text-overflow:\s*ellipsis;/s, 'lyric line does not truncate with ellipsis');
+
+  // Glance card padding leaves room for Mochi bot
+  assert.match(styleCss, /\.glance-root\s*\{[^}]*padding:\s*6px\s+14px\s+6px\s+104px;/s, 'glance-root clears Mochi bot');
 });

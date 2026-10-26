@@ -25,7 +25,7 @@ import { buildSpotifyCard, buildSpotifyPill, type SpotifyPillHost } from "./spot
 import { SPOTIFY_ID } from "../core/spotify";
 import { buildMessagesCard, buildMessagesPill } from "./messages";
 import { MESSAGES_ID, PHONE_ID, GLANCE_ID, CALENDAR_ID } from "../core/pills";
-import { buildGlanceCard, setActiveGlanceSlide, getActiveGlanceSlide } from "./glance";
+import { buildGlanceCard, setActiveGlanceSlide } from "./glance";
 import { laptopNotificationHistory, phoneNotificationHistory } from "../core/notifications";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
@@ -242,9 +242,9 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
-      const isGlance = (v === "overview" || v === "empty") && State.focusTask == null;
-      tabHome.classList.toggle("on", isGlance && getActiveGlanceSlide() === 1);
-      tabCalendar.classList.toggle("on", isGlance && getActiveGlanceSlide() === 2);
+      const isGlance = (v === "overview" || v === "empty") && (State.focusId === GLANCE_ID || State.focusId === CALENDAR_ID);
+      tabHome.classList.toggle("on", isGlance && State.focusId === GLANCE_ID);
+      tabCalendar.classList.toggle("on", isGlance && State.focusId === CALENDAR_ID);
       tabDrop.classList.toggle("on", v === "upload");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
@@ -378,8 +378,7 @@ function buildOverview(actions: ViewActions): ViewHost {
     el,
     tick(nowMs: number) {
       if (mode === "glance") {
-        glanceCard.sync();
-        return false;
+        return glanceCard.tick(nowMs);
       }
       if (mode !== "ticker") return false;
       ticker.tick(nowMs);
@@ -407,8 +406,9 @@ function buildOverview(actions: ViewActions): ViewHost {
     },
     sync() {
       const task = State.focusTask;
-      if (task?.id !== lastFocus) {
-        lastFocus = task?.id ?? null;
+      const currentFocus = task?.id ?? State.focusId;
+      if (currentFocus !== lastFocus) {
+        lastFocus = currentFocus;
         detailOpen = false;
         activeDiffId = null;
         cardKey = "";
