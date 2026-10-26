@@ -19,6 +19,7 @@ import type { ViewHost } from "./views";
 import { N_, t, tl } from "../i18n/i18n";
 
 const STRINGS = {
+  title: N_("Ask"),
   placeholderFirst: N_("Ask me anything…"),
   placeholderNext: N_("Continue…"),
   send: N_("Send"),

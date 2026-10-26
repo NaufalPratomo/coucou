@@ -1,0 +1,319 @@
+import { h, svg, clear } from "./dom";
+import { ICONS } from "./icons";
+import { State } from "../core/state";
+import { GLANCE_ID, CALENDAR_ID } from "../core/pills";
+
+export interface WeatherData {
+  city: string;
+  temp: number;
+  condition: string;
+  humidity: number;
+  icon: keyof typeof ICONS;
+}
+
+let cachedWeather: WeatherData | null = null;
+let lastWeatherFetch = 0;
+const WEATHER_CACHE_MS = 20 * 60 * 1000; // 20 minutes
+
+function weatherCodeToCondition(code: number): { condition: string; icon: keyof typeof ICONS } {
+  if (code === 0) return { condition: "Cerah", icon: "sun" };
+  if (code === 1 || code === 2) return { condition: "Cerah Berawan", icon: "cloudSun" };
+  if (code === 3) return { condition: "Berawan", icon: "cloud" };
+  if (code === 45 || code === 48) return { condition: "Berkabut", icon: "cloud" };
+  if (code >= 51 && code <= 55) return { condition: "Gerimis", icon: "cloudRain" };
+  if (code >= 61 && code <= 65) return { condition: "Hujan", icon: "cloudRain" };
+  if (code >= 80 && code <= 82) return { condition: "Hujan Deras", icon: "cloudRain" };
+  if (code >= 95) return { condition: "Badai Petir", icon: "cloudRain" };
+  return { condition: "Cerah Berawan", icon: "cloudSun" };
+}
+
+export async function fetchLiveWeather(): Promise<WeatherData | null> {
+  const now = Date.now();
+  if (cachedWeather && now - lastWeatherFetch < WEATHER_CACHE_MS) {
+    return cachedWeather;
+  }
+
+  try {
+    // 1. Get user city and coordinates via free GeoJS IP API
+    const geoRes = await fetch("https://get.geojs.io/v1/ip/geo.json", { signal: AbortSignal.timeout(4000) });
+    if (!geoRes.ok) throw new Error("Geo fetch failed");
+    const geo = await geoRes.json();
+    const city = geo.city || geo.region || "Lokal";
+    const lat = geo.latitude;
+    const lon = geo.longitude;
+
+    // 2. Fetch live weather from Open-Meteo
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code`;
+    const weatherRes = await fetch(weatherUrl, { signal: AbortSignal.timeout(4000) });
+    if (!weatherRes.ok) throw new Error("Weather fetch failed");
+    const weatherJson = await weatherRes.json();
+    const current = weatherJson.current;
+
+    const temp = Math.round(current.temperature_2m);
+    const humidity = Math.round(current.relative_humidity_2m);
+    const { condition, icon } = weatherCodeToCondition(current.weather_code);
+
+    cachedWeather = { city, temp, condition, humidity, icon };
+    lastWeatherFetch = now;
+    return cachedWeather;
+  } catch (_) {
+    if (cachedWeather) return cachedWeather;
+    return null;
+  }
+}
+
+export interface GlanceCardHost {
+  el: HTMLElement;
+  sync(): void;
+  setSlide(slide: 1 | 2): void;
+}
+
+let activeSlide: 1 | 2 = 1;
+export function getActiveGlanceSlide(): 1 | 2 {
+  return activeSlide;
+}
+
+export function setActiveGlanceSlide(slide: 1 | 2) {
+  activeSlide = slide;
+  State.notify();
+}
+
+export function buildGlanceCard(): GlanceCardHost {
+  const root = h("div", { class: "glance-root" });
+  let calendarMonth = new Date();
+
+  // Slide switcher buttons
+  const btnSlide1 = h(
+    "button",
+    {
+      class: "glance-seg-btn active",
+      title: "Jam & Cuaca",
+      onclick: () => {
+        activeSlide = 1;
+        State.focusId = GLANCE_ID;
+        render();
+        State.notify();
+      },
+    },
+    svg(ICONS.clock, 11),
+    h("span", { text: "Jam & Cuaca" }),
+  );
+
+  const btnSlide2 = h(
+    "button",
+    {
+      class: "glance-seg-btn",
+      title: "Kalender",
+      onclick: () => {
+        activeSlide = 2;
+        State.focusId = CALENDAR_ID;
+        render();
+        State.notify();
+      },
+    },
+    svg(ICONS.calendar, 11),
+    h("span", { text: "Kalender" }),
+  );
+
+  const segmentBar = h("div", { class: "glance-segmented" }, btnSlide1, btnSlide2);
+  const slideContent = h("div", { class: "glance-content" });
+  root.append(segmentBar, slideContent);
+
+  // Weather pre-fetch
+  void fetchLiveWeather().then(() => {
+    if (activeSlide === 1) render();
+  });
+
+  function renderSlide1(now: Date) {
+    clear(slideContent);
+
+    // Weather widget row
+    const weatherRow = h("div", { class: "glance-weather-row" });
+    if (cachedWeather) {
+      const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 13);
+      wIcon.classList.add("weather-svg-icon");
+      const cityEl = h("span", { class: "weather-city", text: cachedWeather.city });
+      const dotEl = h("span", { class: "glance-dot", text: "·" });
+      const tempEl = h("span", { class: "weather-temp", text: `${cachedWeather.temp}°C` });
+      const condEl = h("span", { class: "weather-cond", text: cachedWeather.condition });
+      weatherRow.append(wIcon, cityEl, dotEl, tempEl, condEl);
+    } else {
+      const loadIcon = svg(ICONS.cloudSun, 13);
+      weatherRow.append(loadIcon, h("span", { class: "weather-city", text: "Memuat cuaca kota..." }));
+    }
+
+    // Time row (large digital clock + seconds)
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+
+    const timeRow = h("div", { class: "glance-time-row" });
+    const clockEl = h("span", { class: "glance-clock", text: `${hours}:${minutes}` });
+    const secEl = h("span", { class: "glance-sec", text: `:${seconds}` });
+    timeRow.append(clockEl, secEl);
+
+    // Simple date row
+    const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ];
+    const dayName = days[now.getDay()];
+    const dateNum = now.getDate();
+    const monthName = months[now.getMonth()];
+    const yearNum = now.getFullYear();
+
+    const dateRow = h("div", { class: "glance-date-row" });
+    const dateEl = h("span", { class: "glance-date", text: `${dayName}, ${dateNum} ${monthName} ${yearNum}` });
+    dateRow.append(dateEl);
+
+    // Switch to calendar hint button
+    const toCalBtn = h(
+      "button",
+      {
+        class: "glance-switch-link",
+        onclick: () => {
+          activeSlide = 2;
+          State.focusId = CALENDAR_ID;
+          render();
+          State.notify();
+        },
+      },
+      h("span", { text: "Lihat Kalender" }),
+      svg(ICONS.chevronRight, 10),
+    );
+
+    const slide1Card = h("div", { class: "glance-slide slide-glance" }, weatherRow, timeRow, dateRow, toCalBtn);
+    slideContent.append(slide1Card);
+  }
+
+  function renderSlide2() {
+    clear(slideContent);
+
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ];
+
+    // Calendar Header: < Month Year >
+    const prevBtn = h(
+      "button",
+      {
+        class: "cal-nav-btn",
+        title: "Bulan Sebelumnya",
+        onclick: () => {
+          calendarMonth = new Date(year, month - 1, 1);
+          render();
+        },
+      },
+      svg(ICONS.chevronLeft, 11),
+    );
+
+    const titleBtn = h(
+      "button",
+      {
+        class: "cal-month-title",
+        title: "Kembali ke Bulan Sekarang",
+        onclick: () => {
+          calendarMonth = new Date();
+          render();
+        },
+      },
+      `${months[month]} ${year}`,
+    );
+
+    const nextBtn = h(
+      "button",
+      {
+        class: "cal-nav-btn",
+        title: "Bulan Berikutnya",
+        onclick: () => {
+          calendarMonth = new Date(year, month + 1, 1);
+          render();
+        },
+      },
+      svg(ICONS.chevronRight, 11),
+    );
+
+    const toGlanceBtn = h(
+      "button",
+      {
+        class: "glance-switch-link small",
+        onclick: () => {
+          activeSlide = 1;
+          State.focusId = GLANCE_ID;
+          render();
+          State.notify();
+        },
+      },
+      svg(ICONS.chevronLeft, 10),
+      h("span", { text: "Jam & Cuaca" }),
+    );
+
+    const calHeader = h("div", { class: "cal-header" }, prevBtn, titleBtn, nextBtn, toGlanceBtn);
+
+    // Weekday column labels (Sun to Sat)
+    const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+    const gridHeader = h("div", { class: "cal-grid-header" });
+    for (const d of dayNames) {
+      gridHeader.append(h("span", { class: "cal-day-label", text: d }));
+    }
+
+    // Days grid
+    const gridDays = h("div", { class: "cal-grid-days" });
+    const firstDay = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    // Blank cells before the 1st
+    for (let i = 0; i < firstDay; i++) {
+      gridDays.append(h("span", { class: "cal-cell empty" }));
+    }
+
+    // Days 1..totalDays
+    const today = new Date();
+    const isThisMonth = today.getFullYear() === year && today.getMonth() === month;
+
+    for (let day = 1; day <= totalDays; day++) {
+      const isToday = isThisMonth && today.getDate() === day;
+      const cell = h(
+        "span",
+        {
+          class: isToday ? "cal-cell today" : "cal-cell",
+          title: `${day} ${months[month]} ${year}${isToday ? " (Hari Ini)" : ""}`,
+        },
+        String(day),
+      );
+      gridDays.append(cell);
+    }
+
+    const slide2Card = h("div", { class: "glance-slide slide-calendar" }, calHeader, gridHeader, gridDays);
+    slideContent.append(slide2Card);
+  }
+
+  function render() {
+    btnSlide1.classList.toggle("active", activeSlide === 1);
+    btnSlide2.classList.toggle("active", activeSlide === 2);
+
+    const now = new Date();
+    if (activeSlide === 1) {
+      renderSlide1(now);
+    } else {
+      renderSlide2();
+    }
+  }
+
+  render();
+
+  return {
+    el: root,
+    sync() {
+      render();
+    },
+    setSlide(slide: 1 | 2) {
+      activeSlide = slide;
+      render();
+    },
+  };
+}

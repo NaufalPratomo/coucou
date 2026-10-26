@@ -3298,3 +3298,239 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   color: var(--dim-3);
   margin-top: 6px;
 }
+
+/* ── Daily Glance (Slide 1: Time, Date & Weather) & Mini Calendar (Slide 2) ── */
+
+.glance-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 2px 4px;
+}
+
+.glance-segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 2px;
+  margin-bottom: 3px;
+}
+
+.glance-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--dim-2);
+  font: 500 10px var(--font);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.glance-seg-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.glance-seg-btn.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glance-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.glance-slide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.slide-glance {
+  justify-content: center;
+}
+
+.glance-weather-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 500 10.5px var(--font);
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 2px;
+}
+
+.weather-svg-icon {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.weather-city {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.glance-dot {
+  color: var(--dim-3);
+}
+
+.weather-temp {
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.weather-cond {
+  color: var(--dim-2);
+  font-size: 10px;
+}
+
+.glance-time-row {
+  display: flex;
+  align-items: baseline;
+  line-height: 1;
+  margin: 2px 0;
+}
+
+.glance-clock {
+  font-size: 30px;
+  font-weight: 700;
+  font-family: var(--font);
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.glance-sec {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+  margin-left: 2px;
+}
+
+.glance-date-row {
+  margin-top: 1px;
+}
+
+.glance-date {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.glance-switch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: 500 10px var(--font);
+  color: var(--dim-3);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 4px;
+  transition: color 0.15s;
+  align-self: flex-start;
+}
+
+.glance-switch-link:hover {
+  color: #38bdf8;
+}
+
+/* ── Calendar Slide ──────────────────────────────────────────────────────── */
+
+.slide-calendar {
+  justify-content: flex-start;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.cal-nav-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--dim-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s;
+}
+
+.cal-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.cal-month-title {
+  border: 0;
+  background: transparent;
+  font: 600 11px var(--font);
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.cal-month-title:hover {
+  color: #60a5fa;
+}
+
+.cal-grid-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font: 600 8.5px var(--font);
+  color: var(--dim-3);
+  margin-bottom: 2px;
+}
+
+.cal-day-label {
+  padding: 1px 0;
+}
+
+.cal-grid-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  text-align: center;
+}
+
+.cal-cell {
+  font: 500 9.5px var(--font);
+  height: 14px;
+  line-height: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 3px;
+  user-select: none;
+}
+
+.cal-cell.empty {
+  visibility: hidden;
+}
+
+.cal-cell.today {
+  background: #0a84ff;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 5px rgba(10, 132, 255, 0.5);
+}

@@ -24,7 +24,8 @@ import { buildWardrobe } from "./wardrobe";
 import { buildSpotifyCard, buildSpotifyPill, type SpotifyPillHost } from "./spotify";
 import { SPOTIFY_ID } from "../core/spotify";
 import { buildMessagesCard, buildMessagesPill } from "./messages";
-import { MESSAGES_ID, PHONE_ID } from "../core/pills";
+import { MESSAGES_ID, PHONE_ID, GLANCE_ID, CALENDAR_ID } from "../core/pills";
+import { buildGlanceCard, setActiveGlanceSlide, getActiveGlanceSlide } from "./glance";
 import { laptopNotificationHistory, phoneNotificationHistory } from "../core/notifications";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
@@ -110,8 +111,34 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", title: tl("Overview"), onclick: () => go("overview") }, svg(ICONS.house, 13));
-  const tabChat = h("button", { class: "tab", title: tl("Ask"), onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
+  const tabHome = h(
+    "button",
+    {
+      class: "tab tab-glance",
+      title: "Jam & Cuaca (Slide 1)",
+      onclick: () => {
+        actions.blip();
+        actions.setFocus(GLANCE_ID);
+        setActiveGlanceSlide(1);
+        actions.setView("overview");
+      },
+    },
+    svg(ICONS.clock, 13),
+  );
+  const tabCalendar = h(
+    "button",
+    {
+      class: "tab tab-calendar",
+      title: "Kalender (Slide 2)",
+      onclick: () => {
+        actions.blip();
+        actions.setFocus(CALENDAR_ID);
+        setActiveGlanceSlide(2);
+        actions.setView("overview");
+      },
+    },
+    svg(ICONS.calendar, 13),
+  );
   const tabDrop = h("button", { class: "tab", title: tl("Drop"), onclick: () => go("upload") }, svg(ICONS.plus, 13));
   const divider = h("div", { class: "header-divider" });
   const agentTabs = h("div", { class: "agent-tabs" });
@@ -133,7 +160,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, divider, agentTabs),
+    h("div", { class: "tabs" }, tabHome, tabCalendar, tabDrop, divider, agentTabs),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn),
   );
   const headerActions = (el.lastElementChild ?? el.childNodes[1]) as HTMLElement;
@@ -215,8 +242,9 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
-      tabHome.classList.toggle("on", v === "overview" || v === "empty");
-      tabChat.classList.toggle("on", v === "prompt");
+      const isGlance = (v === "overview" || v === "empty") && State.focusTask == null;
+      tabHome.classList.toggle("on", isGlance && getActiveGlanceSlide() === 1);
+      tabCalendar.classList.toggle("on", isGlance && getActiveGlanceSlide() === 2);
       tabDrop.classList.toggle("on", v === "upload");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
@@ -283,6 +311,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   let messagesPill: { el: HTMLElement; sync(): void } | null = null;
   const phoneCard = buildMessagesCard("phone");
   let phonePill: { el: HTMLElement; sync(): void } | null = null;
+  const glanceCard = buildGlanceCard();
 
   const el = h("div", { class: "view overview" },
     h("div", { class: "left" }, left),
@@ -292,7 +321,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   let pillIds = "";
   let detailOpen = false;
   let lastFocus: string | null = null;
-  let mode: "ticker" | "card" | "plan" | "diff" | "spotify" | "messages" | "phone" | null = null;
+  let mode: "ticker" | "card" | "plan" | "diff" | "spotify" | "messages" | "phone" | "glance" | null = null;
   let cardKey = "";
   /** The list row highlighted at the last sync, to scroll only when it moves. */
   let shownSelection: number | null = null;
@@ -348,6 +377,10 @@ function buildOverview(actions: ViewActions): ViewHost {
   return {
     el,
     tick(nowMs: number) {
+      if (mode === "glance") {
+        glanceCard.sync();
+        return false;
+      }
       if (mode !== "ticker") return false;
       ticker.tick(nowMs);
       return ticker.animating;
@@ -478,9 +511,19 @@ function buildOverview(actions: ViewActions): ViewHost {
           clear(leftBody);
           leftBody.append(renderIntegrationCard(task, hooks));
         }
+      } else {
+        if (mode !== "glance") {
+          clear(leftBody);
+          leftBody.append(glanceCard.el);
+          mode = "glance";
+          cardKey = "";
+        }
+        const slide = State.focusId === CALENDAR_ID ? 2 : 1;
+        glanceCard.setSlide(slide);
+        glanceCard.sync();
       }
 
-      jump.style.display = detailOpen || mode === "plan" || mode === "diff" || mode === "messages" || mode === "phone" ? "none" : "";
+      jump.style.display = detailOpen || mode === "plan" || mode === "diff" || mode === "messages" || mode === "phone" || mode === "glance" ? "none" : "";
 
       // Ctrl+↓ Ctrl+↑ walk the open GitHub list (cardItemCount / cardSelection).
       const rows = mode === "card" ? listRows(leftBody) : [];

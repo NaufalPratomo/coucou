@@ -383,3 +383,24 @@ test('14. Lyric lines render clean single text without duplicate word repetition
     'lyric-line does not pass duplicate text in attributes',
   );
 });
+
+test('15. Daily Glance (Slide 1: Time, Date & Weather) renders in overview', async () => {
+  const { buildGlanceCard, setActiveGlanceSlide, getActiveGlanceSlide } = await import('../src/views/glance.ts');
+  const glance = buildGlanceCard();
+  glance.setSlide(1);
+  assert.equal(getActiveGlanceSlide(), 1);
+  const text = glance.el.textContent;
+  assert.ok(text.includes('Jam & Cuaca'), 'Slide 1 button exists');
+  assert.ok(glance.el.querySelector('.glance-clock'), 'Digital clock is rendered');
+  assert.ok(glance.el.querySelector('.glance-date'), 'Date is rendered');
+});
+
+test('16. Mini Monthly Calendar (Slide 2) renders monthly grid with today highlighted', async () => {
+  const { buildGlanceCard, getActiveGlanceSlide } = await import('../src/views/glance.ts');
+  const glance = buildGlanceCard();
+  glance.setSlide(2);
+  assert.equal(getActiveGlanceSlide(), 2);
+  assert.ok(glance.el.querySelector('.slide-calendar'), 'Calendar slide is rendered');
+  assert.ok(glance.el.querySelector('.cal-month-title'), 'Month & year title exists');
+  assert.ok(glance.el.querySelector('.cal-cell.today'), 'Today cell is highlighted');
+});

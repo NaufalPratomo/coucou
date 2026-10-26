@@ -4,7 +4,7 @@ import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./l
 import type { EyeShape } from "../mochi/engine";
 import {
   DEFAULT_MAIN_PILL, HOST_OS, availablePills, orderPills, pillDefinition, sanitizeDeclared,
-  toggleDeclared, type HostOs, type PillDefinition,
+  toggleDeclared, GLANCE_ID, CALENDAR_ID, type HostOs, type PillDefinition,
 } from "./pills";
 import type { CodexPlanUsage, PlanUsage } from "./plan";
 import type { ProviderId } from "./providers";
@@ -286,6 +286,7 @@ class AppState {
   }
 
   get focusTask(): AgentTask | null {
+    if (this.focusId === GLANCE_ID || this.focusId === CALENDAR_ID) return null;
     return this.tasks.find((t) => t.id === this.focusId) ?? this.tasks[0] ?? null;
   }
 

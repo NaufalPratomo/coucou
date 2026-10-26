@@ -143,6 +143,8 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
 
 export const MESSAGES_ID = "integration_messages";
 export const PHONE_ID = "integration_phone";
+export const GLANCE_ID = "glance_home";
+export const CALENDAR_ID = "glance_calendar";
 
 /** The always-on pill unless the user picks another workspace tool. */
 export const DEFAULT_MAIN_PILL = "integration_claude";
