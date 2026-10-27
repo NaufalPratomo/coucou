@@ -669,6 +669,14 @@ export class Island {
     if (
       State.mode === "expanded" &&
       (State.view === "overview" || State.view === "empty") &&
+      (State.focusId === GLANCE_ID || State.focusId === CALENDAR_ID)
+    ) {
+      w = 680;
+      h = 250;
+    }
+    if (
+      State.mode === "expanded" &&
+      (State.view === "overview" || State.view === "empty") &&
       (State.focusTask?.id === SPOTIFY_ID || State.focusId === SPOTIFY_ID)
     ) {
       w = 690;
@@ -1317,6 +1325,11 @@ export class Island {
     this.greetingShown = greetingActive;
     // A wardrobe try-on never outlives the wardrobe.
     if (State.wardrobePreview && !(expanded && State.view === "wardrobe")) State.wardrobePreview = null;
+
+    const target = this.targetSize();
+    if (this.width.target !== target.w || this.height.target !== target.h) {
+      this.animateGeometry(target.w < this.width.target || target.h < this.height.target);
+    }
 
     this.header.sync();
     for (const [name, view] of this.views) {

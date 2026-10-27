@@ -1,7 +1,6 @@
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
-import { GLANCE_ID, CALENDAR_ID } from "../core/pills";
 
 export interface WeatherData {
   city: string;
@@ -83,42 +82,8 @@ export function buildGlanceCard(): GlanceCardHost {
   const root = h("div", { class: "glance-root" });
   let calendarMonth = new Date();
 
-  // Slide switcher buttons
-  const btnSlide1 = h(
-    "button",
-    {
-      class: "glance-seg-btn active",
-      title: "Jam & Cuaca",
-      onclick: () => {
-        activeSlide = 1;
-        State.focusId = GLANCE_ID;
-        render();
-        State.notify();
-      },
-    },
-    svg(ICONS.clock, 11),
-    h("span", { text: "Jam & Cuaca" }),
-  );
-
-  const btnSlide2 = h(
-    "button",
-    {
-      class: "glance-seg-btn",
-      title: "Kalender",
-      onclick: () => {
-        activeSlide = 2;
-        State.focusId = CALENDAR_ID;
-        render();
-        State.notify();
-      },
-    },
-    svg(ICONS.calendar, 11),
-    h("span", { text: "Kalender" }),
-  );
-
-  const segmentBar = h("div", { class: "glance-segmented" }, btnSlide1, btnSlide2);
   const slideContent = h("div", { class: "glance-content" });
-  root.append(segmentBar, slideContent);
+  root.append(slideContent);
 
   // Weather pre-fetch
   void fetchLiveWeather().then(() => {
@@ -136,22 +101,7 @@ export function buildGlanceCard(): GlanceCardHost {
   const dateEl = h("span", { class: "glance-date" });
   dateRow.append(dateEl);
 
-  const toCalBtn = h(
-    "button",
-    {
-      class: "glance-switch-link",
-      onclick: () => {
-        activeSlide = 2;
-        State.focusId = CALENDAR_ID;
-        render();
-        State.notify();
-      },
-    },
-    h("span", { text: "Lihat Kalender" }),
-    svg(ICONS.chevronRight, 10),
-  );
-
-  const slide1Card = h("div", { class: "glance-slide slide-glance" }, weatherRow, timeRow, dateRow, toCalBtn);
+  const slide1Card = h("div", { class: "glance-slide slide-glance" }, weatherRow, timeRow, dateRow);
 
   let currentRenderedSlide: 1 | 2 | 0 = 0;
   let lastSecond = -1;
@@ -170,15 +120,16 @@ export function buildGlanceCard(): GlanceCardHost {
     lastWeatherKey = key;
     clear(weatherRow);
     if (cachedWeather) {
-      const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 13);
+      const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 14);
       wIcon.classList.add("weather-svg-icon");
       const cityEl = h("span", { class: "weather-city", text: cachedWeather.city });
-      const dotEl = h("span", { class: "glance-dot", text: " · " });
+      const dotEl1 = h("span", { class: "glance-dot", text: " · " });
       const tempEl = h("span", { class: "weather-temp", text: `${cachedWeather.temp}°C` });
+      const dotEl2 = h("span", { class: "glance-dot", text: " · " });
       const condEl = h("span", { class: "weather-cond", text: cachedWeather.condition });
-      weatherRow.append(wIcon, cityEl, dotEl, tempEl, condEl);
+      weatherRow.append(wIcon, cityEl, dotEl1, tempEl, dotEl2, condEl);
     } else {
-      const loadIcon = svg(ICONS.cloudSun, 13);
+      const loadIcon = svg(ICONS.cloudSun, 14);
       loadIcon.classList.add("weather-svg-icon");
       weatherRow.append(loadIcon, h("span", { class: "weather-city", text: "Memuat cuaca..." }));
     }
@@ -224,26 +175,14 @@ export function buildGlanceCard(): GlanceCardHost {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
 
-    // Calendar Header: < Month Year >
-    const prevBtn = h(
-      "button",
-      {
-        class: "cal-nav-btn",
-        title: "Bulan Sebelumnya",
-        onclick: () => {
-          calendarMonth = new Date(year, month - 1, 1);
-          renderSlide2();
-        },
-      },
-      svg(ICONS.chevronLeft, 11),
-    );
-
+    // Calendar Header: Month Year + [<] [>]
     const titleBtn = h(
       "button",
       {
         class: "cal-month-title",
         title: "Kembali ke Bulan Sekarang",
-        onclick: () => {
+        onclick: (e: Event) => {
+          e.stopPropagation();
           calendarMonth = new Date();
           renderSlide2();
         },
@@ -251,12 +190,27 @@ export function buildGlanceCard(): GlanceCardHost {
       `${months[month]} ${year}`,
     );
 
+    const prevBtn = h(
+      "button",
+      {
+        class: "cal-nav-btn",
+        title: "Bulan Sebelumnya",
+        onclick: (e: Event) => {
+          e.stopPropagation();
+          calendarMonth = new Date(year, month - 1, 1);
+          renderSlide2();
+        },
+      },
+      svg(ICONS.chevronLeft, 11),
+    );
+
     const nextBtn = h(
       "button",
       {
         class: "cal-nav-btn",
         title: "Bulan Berikutnya",
-        onclick: () => {
+        onclick: (e: Event) => {
+          e.stopPropagation();
           calendarMonth = new Date(year, month + 1, 1);
           renderSlide2();
         },
@@ -264,22 +218,8 @@ export function buildGlanceCard(): GlanceCardHost {
       svg(ICONS.chevronRight, 11),
     );
 
-    const toGlanceBtn = h(
-      "button",
-      {
-        class: "glance-switch-link small",
-        onclick: () => {
-          activeSlide = 1;
-          State.focusId = GLANCE_ID;
-          render();
-          State.notify();
-        },
-      },
-      svg(ICONS.chevronLeft, 10),
-      h("span", { text: "Jam & Cuaca" }),
-    );
-
-    const calHeader = h("div", { class: "cal-header" }, prevBtn, titleBtn, nextBtn, toGlanceBtn);
+    const calNav = h("div", { class: "cal-nav" }, prevBtn, nextBtn);
+    const calHeader = h("div", { class: "cal-header" }, titleBtn, calNav);
 
     // Weekday column labels (Sun to Sat)
     const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
@@ -320,9 +260,6 @@ export function buildGlanceCard(): GlanceCardHost {
   }
 
   function render() {
-    btnSlide1.classList.toggle("active", activeSlide === 1);
-    btnSlide2.classList.toggle("active", activeSlide === 2);
-
     const now = new Date();
     if (activeSlide === 1) {
       renderSlide1(now);

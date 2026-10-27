@@ -389,10 +389,9 @@ test('15. Daily Glance (Slide 1: Time, Date & Weather) renders in overview', asy
   const glance = buildGlanceCard();
   glance.setSlide(1);
   assert.equal(getActiveGlanceSlide(), 1);
-  const text = glance.el.textContent;
-  assert.ok(text.includes('Jam & Cuaca'), 'Slide 1 button exists');
   assert.ok(glance.el.querySelector('.glance-clock'), 'Digital clock is rendered');
   assert.ok(glance.el.querySelector('.glance-date'), 'Date is rendered');
+  assert.ok(glance.el.querySelector('.glance-weather-row'), 'Weather row is rendered');
 });
 
 test('16. Mini Monthly Calendar (Slide 2) renders monthly grid with today highlighted', async () => {
@@ -438,5 +437,20 @@ test('18. Spotify expanded island is 690px and lyrics column has wrapping withou
   assert.doesNotMatch(styleCss, /\.lyric-line\s*\{[^}]*text-overflow:\s*ellipsis;/s, 'lyric line does not truncate with ellipsis');
 
   // Glance card padding leaves room for Mochi bot
-  assert.match(styleCss, /\.glance-root\s*\{[^}]*padding:\s*6px\s+14px\s+6px\s+104px;/s, 'glance-root clears Mochi bot');
+  assert.match(styleCss, /\.glance-root\s*\{[^}]*padding:\s*10px\s+20px\s+12px\s+114px;/s, 'glance-root clears Mochi bot');
+});
+
+test('19. Glance and Calendar expanded island dimensions and weather CSP', async () => {
+  const fs = await import('node:fs');
+  const islandCode = fs.readFileSync(new URL('../src/island/island.ts', import.meta.url), 'utf8');
+  const tauriConf = JSON.parse(fs.readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
+
+  // Glance and Calendar target size is 680x250
+  assert.ok(islandCode.includes('w = 680;'), 'expanded island width for glance/calendar is 680px');
+  assert.ok(islandCode.includes('h = 250;'), 'expanded island height for glance/calendar is 250px');
+
+  // CSP connect-src contains open-meteo and geojs
+  const csp = tauriConf.app.security.csp;
+  assert.ok(csp.includes('https://get.geojs.io'), 'CSP allows geojs');
+  assert.ok(csp.includes('https://api.open-meteo.com'), 'CSP allows open-meteo');
 });
