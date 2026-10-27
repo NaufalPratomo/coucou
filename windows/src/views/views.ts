@@ -115,7 +115,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "button",
     {
       class: "tab tab-glance",
-      title: "Jam & Cuaca (Slide 1)",
+      title: "Time & Weather (Slide 1)",
       onclick: () => {
         actions.blip();
         actions.setFocus(GLANCE_ID);
@@ -129,7 +129,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "button",
     {
       class: "tab tab-calendar",
-      title: "Kalender (Slide 2)",
+      title: "Calendar (Slide 2)",
       onclick: () => {
         actions.blip();
         actions.setFocus(CALENDAR_ID);

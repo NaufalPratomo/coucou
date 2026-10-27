@@ -2,6 +2,7 @@ import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { invoke } from "../core/bridge";
+import { N_ } from "../i18n/i18n";
 
 export interface WeatherData {
   city: string;
@@ -67,31 +68,39 @@ export function setCustomCity(city: string | null) {
 }
 
 function weatherCodeToCondition(code: number): { condition: string; icon: keyof typeof ICONS } {
-  if (code === 0) return { condition: "Cerah", icon: "sun" };
-  if (code === 1 || code === 2) return { condition: "Cerah Berawan", icon: "cloudSun" };
-  if (code === 3) return { condition: "Berawan", icon: "cloud" };
-  if (code === 45 || code === 48) return { condition: "Berkabut", icon: "cloud" };
-  if (code >= 51 && code <= 55) return { condition: "Gerimis", icon: "cloudRain" };
-  if (code >= 61 && code <= 65) return { condition: "Hujan", icon: "cloudRain" };
-  if (code >= 80 && code <= 82) return { condition: "Hujan Deras", icon: "cloudRain" };
-  if (code >= 95) return { condition: "Badai Petir", icon: "cloudRain" };
-  return { condition: "Cerah Berawan", icon: "cloudSun" };
+  if (code === 0) return { condition: "Sunny", icon: "sun" };
+  if (code === 1 || code === 2) return { condition: "Partly Cloudy", icon: "cloudSun" };
+  if (code === 3) return { condition: "Cloudy", icon: "cloud" };
+  if (code === 45 || code === 48) return { condition: "Foggy", icon: "cloud" };
+  if (code >= 51 && code <= 55) return { condition: "Drizzle", icon: "cloudRain" };
+  if (code >= 61 && code <= 65) return { condition: "Rain", icon: "cloudRain" };
+  if (code >= 80 && code <= 82) return { condition: "Heavy Rain", icon: "cloudRain" };
+  if (code >= 95) return { condition: "Thunderstorm", icon: "cloudRain" };
+  return { condition: "Partly Cloudy", icon: "cloudSun" };
 }
 
 async function reverseGeocode(lat: number, lon: number): Promise<string> {
   // 1. Try BigDataCloud reverse geocoding
   try {
-    const revUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`;
+    const revUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
     const revRes = await fetch(revUrl, { signal: AbortSignal.timeout(3500) });
     if (revRes.ok) {
       const rev = await revRes.json();
       if (rev.localityInfo?.administrative) {
         const admin = rev.localityInfo.administrative as Array<{ adminLevel?: number; name?: string; description?: string }>;
         const regency = admin.find(
-          (a) => a.adminLevel === 5 || (a.description && (a.description.toLowerCase().includes("kabupaten") || a.description.toLowerCase().includes("kota"))),
+          (a) => a.adminLevel === 5 || (a.description && (
+            a.description.toLowerCase().includes("regency") ||
+            a.description.toLowerCase().includes("county") ||
+            a.description.toLowerCase().includes("city") ||
+            a.description.toLowerCase().includes("kabupaten") ||
+            a.description.toLowerCase().includes("kota")
+          )),
         );
         if (regency?.name) {
-          return regency.name.replace(/^(Kabupaten|Kota)\s+/i, "");
+          return regency.name
+            .replace(/^(Regency of|City of|Kabupaten|Kota)\s+/i, "")
+            .replace(/\s+(Regency|City)$/i, "");
         }
       }
       if (rev.city && rev.city !== "Lokal") return rev.city;
@@ -101,9 +110,9 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
 
   // 2. Try Nominatim reverse geocoding
   try {
-    const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=id`;
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`;
     const nomRes = await fetch(nomUrl, {
-      headers: { "User-Agent": "CoucouApp/0.6.26" },
+      headers: { "User-Agent": "CoucouApp/0.6.27" },
       signal: AbortSignal.timeout(3500),
     });
     if (nomRes.ok) {
@@ -111,7 +120,9 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
       const addr = nom.address || {};
       const cityName = addr.county || addr.city || addr.town || addr.municipality || addr.state_district;
       if (cityName) {
-        return cityName.replace(/^(Kabupaten|Kota)\s+/i, "");
+        return cityName
+          .replace(/^(Regency of|City of|Kabupaten|Kota)\s+/i, "")
+          .replace(/\s+(Regency|City)$/i, "");
       }
     }
   } catch (_) {}
@@ -124,7 +135,7 @@ async function resolveLocation(): Promise<{ lat: number; lon: number; city: stri
   const manual = getCustomCity();
   if (manual) {
     try {
-      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manual)}&count=1&language=id&format=json`;
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manual)}&count=1&language=en&format=json`;
       const res = await fetch(geoUrl, { signal: AbortSignal.timeout(4000) });
       if (res.ok) {
         const json = await res.json();
@@ -277,11 +288,11 @@ export function buildGlanceCard(): GlanceCardHost {
     "div",
     {
       class: "glance-loc-row",
-      title: "Klik untuk ubah kota / lokasi",
+      title: "Click to change city / location",
       onclick: () => {
         const cur = getCustomCity() || "";
         const next = typeof window !== "undefined" && window.prompt
-          ? window.prompt("Ubah kota cuaca (contoh: Pasuruan, Surabaya, Malang, atau kosongkan untuk GPS otomatis):", cur)
+          ? window.prompt("Change weather city (e.g. Pasuruan, Surabaya, Malang, or leave empty for automatic GPS):", cur)
           : null;
         if (next !== null) {
           setCustomCity(next.trim() ? next.trim() : null);
@@ -307,10 +318,18 @@ export function buildGlanceCard(): GlanceCardHost {
   let lastDayNum = -1;
   let lastWeatherKey = "";
 
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const days = [
+    N_("Sunday"),
+    N_("Monday"),
+    N_("Tuesday"),
+    N_("Wednesday"),
+    N_("Thursday"),
+    N_("Friday"),
+    N_("Saturday"),
+  ];
   const months = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
   ];
 
   function updateWeatherUI() {
@@ -332,13 +351,13 @@ export function buildGlanceCard(): GlanceCardHost {
       const condEl = h("span", { class: "glance-cond", text: cachedWeather.condition });
       weatherMain.append(wIcon, tempEl, dotEl, condEl);
 
-      const subText = h("span", { class: "glance-sub-text", text: `Kelembapan ${cachedWeather.humidity}%` });
+      const subText = h("span", { class: "glance-sub-text", text: `Humidity ${cachedWeather.humidity}%` });
       weatherSub.append(subText);
     } else {
       locNameEl.textContent = getCustomCity() || "Pasuruan";
       const loadIcon = svg(ICONS.cloudSun, 16);
       loadIcon.classList.add("glance-weather-icon");
-      const loadText = h("span", { class: "glance-cond", text: "Memuat cuaca..." });
+      const loadText = h("span", { class: "glance-cond", text: "Loading weather..." });
       weatherMain.append(loadIcon, loadText);
     }
   }
@@ -359,7 +378,7 @@ export function buildGlanceCard(): GlanceCardHost {
       const dayName = days[now.getDay()];
       const monthName = months[now.getMonth()];
       const yearNum = now.getFullYear();
-      dateEl.textContent = `${dayName}, ${dayNum} ${monthName} ${yearNum}`;
+      dateEl.textContent = `${dayName}, ${monthName} ${dayNum}, ${yearNum}`;
     }
   }
 
@@ -388,7 +407,7 @@ export function buildGlanceCard(): GlanceCardHost {
       "button",
       {
         class: "cal-month-title",
-        title: "Kembali ke Bulan Sekarang",
+        title: "Current Month",
         onclick: (e: Event) => {
           e.stopPropagation();
           calendarMonth = new Date();
@@ -402,7 +421,7 @@ export function buildGlanceCard(): GlanceCardHost {
       "button",
       {
         class: "cal-nav-btn",
-        title: "Bulan Sebelumnya",
+        title: "Previous Month",
         onclick: (e: Event) => {
           e.stopPropagation();
           calendarMonth = new Date(year, month - 1, 1);
@@ -416,7 +435,7 @@ export function buildGlanceCard(): GlanceCardHost {
       "button",
       {
         class: "cal-nav-btn",
-        title: "Bulan Berikutnya",
+        title: "Next Month",
         onclick: (e: Event) => {
           e.stopPropagation();
           calendarMonth = new Date(year, month + 1, 1);
@@ -430,7 +449,7 @@ export function buildGlanceCard(): GlanceCardHost {
     const calHeader = h("div", { class: "cal-header" }, titleBtn, calNav);
 
     // Weekday column labels (Sun to Sat)
-    const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const gridHeader = h("div", { class: "cal-grid-header" });
     for (const d of dayNames) {
       gridHeader.append(h("span", { class: "cal-day-label", text: d }));
@@ -456,7 +475,7 @@ export function buildGlanceCard(): GlanceCardHost {
         "span",
         {
           class: isToday ? "cal-cell today" : "cal-cell",
-          title: `${day} ${months[month]} ${year}${isToday ? " (Hari Ini)" : ""}`,
+          title: `${months[month]} ${day}, ${year}${isToday ? " (Today)" : ""}`,
         },
         String(day),
       );

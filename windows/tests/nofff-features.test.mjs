@@ -472,4 +472,10 @@ test('19. Glance and Calendar expanded island dimensions and weather CSP', async
   // Verify glance.ts does not fall back to "Lokal"
   const glanceCode = fs.readFileSync(new URL('../src/views/glance.ts', import.meta.url), 'utf8');
   assert.ok(!glanceCode.includes('city: "Lokal"') && !glanceCode.includes('city = "Lokal"') && !glanceCode.includes('|| "Lokal"'), 'glance.ts does not assign or default to Lokal');
+
+  // Verify English localization in glance.ts
+  assert.ok(glanceCode.includes('"Sunday"'), 'glance.ts uses English day names');
+  assert.ok(glanceCode.includes('"January"'), 'glance.ts uses English month names');
+  assert.ok(glanceCode.includes('Humidity'), 'glance.ts uses Humidity in English');
+  assert.ok(!glanceCode.includes('"Selasa"'), 'glance.ts does not contain Indonesian day names');
 });
