@@ -407,31 +407,37 @@ fn current_screen_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
     Some((p.x, p.y, size.width, size.height, m.scale_factor().to_bits()))
 }
 
-/// Emits `cursor` (window-logical coordinates) at ~60 Hz while the island is
-/// visible. Parked on a condvar the rest of the time.
+/// Emits `cursor` (window-logical coordinates) while the island is visible.
+/// Uses adaptive polling (16 ms when near/on the island, 80 ms when far) and caches
+/// window geometry to eliminate unnecessary CPU usage and Win32 syscall overhead.
+/// Parked on a condvar the rest of the time.
 pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
     std::thread::spawn(move || {
         let mut was_down = false;
         // Remembered across wakes so a display change while hidden is noticed the
         // moment the island comes back.
         let mut last_screen: Option<(i32, i32, u32, u32, u64)> = None;
-        // Without a cursor to read (Linux) the loop only watches the display
-        // layout, and twice a second is plenty for that: waking at 60 Hz just to
-        // find no cursor costs CPU for nothing.
-        let (period, screen_every) = if platform::CURSOR_POLL { (16, 30) } else { (500, 1) };
+        let screen_every: u32 = 30;
         loop {
             gate.wait_until_active();
             let mut last = (f64::MIN, f64::MIN);
             let mut ticks: u32 = 0;
+            let mut cached_origin = PhysicalPosition::new(0, 0);
+            let mut cached_scale = 1.0;
+            let mut cached_size = (PANEL_W, PANEL_H);
+            let mut geom_fresh = false;
+            let mut period_ms: u64 = if platform::CURSOR_POLL { 16 } else { 500 };
+            let mut was_near = false;
+
             while gate.is_active() {
-                std::thread::sleep(Duration::from_millis(period));
+                std::thread::sleep(Duration::from_millis(period_ms));
 
                 // Monitors get plugged in, unplugged, rearranged and rescaled, and
                 // an island pinned to coordinates that no longer exist is an island
                 // nobody can reach. Checked about twice a second — the cursor poll
                 // is already running, so this costs one monitor query.
                 ticks = ticks.wrapping_add(1);
-                if ticks % screen_every == 0 {
+                if ticks % screen_every == 0 || !geom_fresh {
                     let now = current_screen_key(&app);
                     if now.is_some() && now != last_screen {
                         let first = last_screen.is_none();
@@ -441,18 +447,32 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                             let _ = app.emit_to(WINDOW_LABEL, "screen-changed", ());
                         }
                     }
+
+                    // Cache window geometry instead of querying Win32 APIs 60 times/sec
+                    if let Some(win) = window(&app) {
+                        if let Ok(origin) = win.outer_position() {
+                            cached_origin = origin;
+                        }
+                        if let Ok(scale) = win.scale_factor() {
+                            cached_scale = scale;
+                        }
+                        if let Ok(s) = win.inner_size() {
+                            cached_size = (s.width as f64 / cached_scale, s.height as f64 / cached_scale);
+                        }
+                        geom_fresh = true;
+                    }
+                }
+
+                if !platform::CURSOR_POLL {
+                    continue;
                 }
 
                 let Some(win) = window(&app) else { continue };
-                let Ok(origin) = win.outer_position() else { continue };
-                let scale = win.scale_factor().unwrap_or(1.0);
                 let Some((cx, cy)) = cursor_physical() else { continue };
-                let x = (cx - origin.x as f64) / scale;
-                let y = (cy - origin.y as f64) / scale;
-                let size = match win.inner_size() {
-                    Ok(s) => (s.width as f64 / scale, s.height as f64 / scale),
-                    Err(_) => (PANEL_W, PANEL_H),
-                };
+                let x = (cx - cached_origin.x as f64) / cached_scale;
+                let y = (cy - cached_origin.y as f64) / cached_scale;
+                let size = cached_size;
+
                 if (x - last.0).abs() < 1.0 && (y - last.1).abs() < 1.0 {
                     continue;
                 }
@@ -468,15 +488,17 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     && y >= r.y - HIT_MARGIN
                     && y <= r.y + r.h + HIT_MARGIN;
 
-                // A file being dragged has to be able to find us. WS_EX_TRANSPARENT
-                // — what click-through is on Windows — hides the window from
-                // WindowFromPoint, so OLE finds no drop target and shows the "no
-                // drop" cursor. macOS has no such problem: AppKit delivers drags to
-                // registered destinations whatever ignoresMouseEvents says. So while
-                // a button is held anywhere over the panel, the whole panel takes
-                // the mouse, which also makes the drop zone as forgiving as the Mac's.
-                // A press may be the start of a drag: make sure the drop target is
-                // ours before the file arrives.
+                // Adaptive polling rate:
+                // When cursor is within 100px of the island, or when button is down / dragging,
+                // poll at 16ms (60 FPS) for buttery smooth responsiveness.
+                // When cursor is far away, poll at 80ms (12.5 FPS) to slash background CPU usage.
+                let near_margin = 100.0;
+                let is_near = r.w > 0.0
+                    && x >= r.x - near_margin
+                    && x <= r.x + r.w + near_margin
+                    && y >= r.y - near_margin
+                    && y <= r.y + r.h + near_margin;
+
                 let down = left_button_down();
                 if down && !was_down {
                     let handle = app.clone();
@@ -490,13 +512,20 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     && y >= 0.0
                     && y <= size.1;
 
+                period_ms = if is_near || dragging || down { 16 } else { 80 };
+
                 let accept = on_island || dragging;
                 if gate.ignoring.load(Ordering::Relaxed) == accept {
                     gate.ignoring.store(!accept, Ordering::Relaxed);
                     let _ = win.set_ignore_cursor_events(!accept);
                 }
 
-                let _ = win.emit("cursor", CursorPayload { x, y });
+                // Throttle IPC: emit cursor events to WebView2 only when near/on the island,
+                // dragging, or on the exit edge (was_near) so the web view can transition cleanly.
+                if is_near || was_near || dragging {
+                    let _ = win.emit("cursor", CursorPayload { x, y });
+                }
+                was_near = is_near;
             }
         }
     });

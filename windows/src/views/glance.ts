@@ -112,7 +112,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
   try {
     const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`;
     const nomRes = await fetch(nomUrl, {
-      headers: { "User-Agent": "CoucouApp/0.6.27" },
+      headers: { "User-Agent": "CoucouApp/0.6.28" },
       signal: AbortSignal.timeout(3500),
     });
     if (nomRes.ok) {
@@ -218,6 +218,8 @@ export async function fetchLiveWeather(force = false): Promise<WeatherData | nul
     saveCachedWeather(cachedWeather);
     return cachedWeather;
   } catch (_) {
+    // Failure cooldown: if fetching fails, back off for at least 60 seconds
+    lastWeatherFetch = now - WEATHER_CACHE_MS + 60_000;
     if (cachedWeather) return cachedWeather;
     return null;
   }
@@ -249,10 +251,15 @@ export function buildGlanceCard(): GlanceCardHost {
 
   // Weather pre-fetch
   let isFetchingWeather = false;
+  let lastWeatherAttempt = 0;
+  const WEATHER_RETRY_MS = 60_000;
+
   function triggerWeatherRefresh(force = false) {
     if (isFetchingWeather) return;
     const now = Date.now();
-    if (!force && cachedWeather && now - lastWeatherFetch < WEATHER_CACHE_MS) return;
+    const cooldown = cachedWeather ? WEATHER_CACHE_MS : WEATHER_RETRY_MS;
+    if (!force && now - lastWeatherAttempt < cooldown) return;
+    lastWeatherAttempt = now;
     isFetchingWeather = true;
     fetchLiveWeather(force)
       .then((w) => {
@@ -317,6 +324,7 @@ export function buildGlanceCard(): GlanceCardHost {
   let lastSecond = -1;
   let lastDayNum = -1;
   let lastWeatherKey = "";
+  let lastTickHalfSec = -1;
 
   const days = [
     N_("Sunday"),
@@ -501,17 +509,17 @@ export function buildGlanceCard(): GlanceCardHost {
     el: root,
     sync() {
       render();
-      if (!cachedWeather || Date.now() - lastWeatherFetch >= WEATHER_CACHE_MS) {
-        triggerWeatherRefresh();
-      }
+      triggerWeatherRefresh();
     },
-    tick(_nowMs: number): boolean {
+    tick(nowMs: number): boolean {
       if (activeSlide !== 1) return false;
-      const now = new Date();
-      updateClockAndDate(now, false);
-      if (!cachedWeather || Date.now() - lastWeatherFetch >= WEATHER_CACHE_MS) {
-        triggerWeatherRefresh();
+      const halfSec = Math.floor(nowMs / 500);
+      if (halfSec !== lastTickHalfSec) {
+        lastTickHalfSec = halfSec;
+        const now = new Date();
+        updateClockAndDate(now, false);
       }
+      triggerWeatherRefresh();
       return false;
     },
     setSlide(slide: 1 | 2) {
