@@ -1096,6 +1096,24 @@ export class Island {
   }
 
   private frame = (nowMs: number) => {
+    const active =
+      this.width.animating || this.height.animating || this.radius.animating ||
+      !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
+      this.uploadActive || UploadSeq.isActive ||
+      (State.mode === "compact" && State.spotifyPlaying) ||
+      activeNotifBanner != null || this.engine.isDancing;
+
+    // Active transitions and incoming notifications run at 60 FPS (~16ms).
+    // Ambient / idle (Mochi breathing, glance clock) runs at 30 FPS (~33ms),
+    // matching macOS TimelineView(minimumInterval: 1/30) and cutting high-Hz monitor load by ~80%.
+    const minInterval = active ? 16 : 33;
+    if (nowMs - this.lastFrame < minInterval) {
+      if (this.running) {
+        requestAnimationFrame(this.frame);
+      }
+      return;
+    }
+
     const dt = Math.min(0.05, (nowMs - this.lastFrame) / 1000);
     this.lastFrame = nowMs;
 
@@ -1133,7 +1151,7 @@ export class Island {
     this.uploadCanvas.el.classList.toggle("on", uploadActive);
     this.viewsEl.classList.toggle("hidden-by-upload", uploadActive);
 
-    tickMiniBots(dt);
+    tickMiniBots(dt, nowMs);
     // A ticker scroll that loses its frames freezes mid-way, rows overlapping.
     const viewAnimating = this.views.get(State.view)?.tick?.(nowMs) === true;
     if (UploadSeq.isActive) this.stepSequence();
@@ -1198,15 +1216,20 @@ export class Island {
     if (State.mode === "expanded" && State.view !== "uploading" && !greetingActive && !this.uploadActive && !away) {
       const d = p.diameter;
       const color = botGlowColor(State.effectiveState);
-      this.botGlow.style.display = "block";
-      this.botGlow.style.width = `${d * 2.2}px`;
-      this.botGlow.style.height = `${d * 2.2}px`;
-      this.botGlow.style.left = `${this.botCx.value - d * 1.1}px`;
-      this.botGlow.style.top = `${this.botCy.value - d * 1.1}px`;
-      this.botGlow.style.background = `radial-gradient(circle, ${color} 0%, transparent 62%)`;
-      this.botGlow.style.opacity = String(botGlowOpacity(State.effectiveState));
+      const glowLeft = `${this.botCx.value - d * 1.1}px`;
+      const glowTop = `${this.botCy.value - d * 1.1}px`;
+      const glowSize = `${d * 2.2}px`;
+      if (this.botGlow.style.display !== "block") this.botGlow.style.display = "block";
+      if (this.botGlow.style.width !== glowSize) this.botGlow.style.width = glowSize;
+      if (this.botGlow.style.height !== glowSize) this.botGlow.style.height = glowSize;
+      if (this.botGlow.style.left !== glowLeft) this.botGlow.style.left = glowLeft;
+      if (this.botGlow.style.top !== glowTop) this.botGlow.style.top = glowTop;
+      const bg = `radial-gradient(circle, ${color} 0%, transparent 62%)`;
+      if (this.botGlow.style.background !== bg) this.botGlow.style.background = bg;
+      const op = String(botGlowOpacity(State.effectiveState));
+      if (this.botGlow.style.opacity !== op) this.botGlow.style.opacity = op;
     } else {
-      this.botGlow.style.display = "none";
+      if (this.botGlow.style.display !== "none") this.botGlow.style.display = "none";
     }
   }
 
@@ -1223,8 +1246,10 @@ export class Island {
       this.botCanvas.style.width = `${wCss}px`;
       this.botCanvas.style.height = `${hCss}px`;
     }
-    this.botCanvas.style.left = `${this.botCx.value - wCss / 2}px`;
-    this.botCanvas.style.top = `${this.botCy.value - BOT_OVERHANG / 2 - hCss / 2}px`;
+    const leftCss = `${this.botCx.value - wCss / 2}px`;
+    const topCss = `${this.botCy.value - BOT_OVERHANG / 2 - hCss / 2}px`;
+    if (this.botCanvas.style.left !== leftCss) this.botCanvas.style.left = leftCss;
+    if (this.botCanvas.style.top !== topCss) this.botCanvas.style.top = topCss;
 
     const ctx = this.botCanvas.getContext("2d");
     if (!ctx) return;

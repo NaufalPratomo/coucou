@@ -80,13 +80,22 @@ export function syncMiniBotStates(tasks: AgentTask[]) {
   }
 }
 
-export function tickMiniBots(dt: number) {
+let lastMiniBotTick = 0;
+export function tickMiniBots(dt: number, nowMs?: number) {
+  const n = nowMs ?? (typeof performance !== "undefined" ? performance.now() : Date.now());
+  // Mini bots only wander eyes: 20 FPS (50ms) is plenty, or 30 FPS (33ms) when dancing.
+  const dancing = Array.from(live.values()).some((mb) => mb.dancing?.());
+  const interval = dancing ? 33 : 50;
+  if (n - lastMiniBotTick < interval) return;
+  const elapsedDt = lastMiniBotTick === 0 ? dt : Math.min(0.1, (n - lastMiniBotTick) / 1000);
+  lastMiniBotTick = n;
+
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   for (const mb of live.values()) {
     const ctx = mb.canvas.getContext("2d");
     if (!ctx) continue;
     mb.engine.setDancing(mb.dancing?.() ?? false);
-    mb.engine.update(dt);
+    mb.engine.update(elapsedDt);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, mb.cssSize, mb.cssSize);
     ctx.save();
