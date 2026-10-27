@@ -12,7 +12,32 @@ export interface WeatherData {
   isPrecise: boolean;
 }
 
-let cachedWeather: WeatherData | null = null;
+const WEATHER_CACHE_STORAGE_KEY = "coucou_cached_weather";
+
+function loadSavedWeather(): WeatherData | null {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const saved = localStorage.getItem(WEATHER_CACHE_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.temp === "number" && parsed.city && parsed.city !== "Lokal") {
+          return parsed as WeatherData;
+        }
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+function saveCachedWeather(data: WeatherData) {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(WEATHER_CACHE_STORAGE_KEY, JSON.stringify(data));
+    }
+  } catch (_) {}
+}
+
+let cachedWeather: WeatherData | null = loadSavedWeather();
 let lastWeatherFetch = 0;
 const WEATHER_CACHE_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -53,6 +78,47 @@ function weatherCodeToCondition(code: number): { condition: string; icon: keyof 
   return { condition: "Cerah Berawan", icon: "cloudSun" };
 }
 
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  // 1. Try BigDataCloud reverse geocoding
+  try {
+    const revUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`;
+    const revRes = await fetch(revUrl, { signal: AbortSignal.timeout(3500) });
+    if (revRes.ok) {
+      const rev = await revRes.json();
+      if (rev.localityInfo?.administrative) {
+        const admin = rev.localityInfo.administrative as Array<{ adminLevel?: number; name?: string; description?: string }>;
+        const regency = admin.find(
+          (a) => a.adminLevel === 5 || (a.description && (a.description.toLowerCase().includes("kabupaten") || a.description.toLowerCase().includes("kota"))),
+        );
+        if (regency?.name) {
+          return regency.name.replace(/^(Kabupaten|Kota)\s+/i, "");
+        }
+      }
+      if (rev.city && rev.city !== "Lokal") return rev.city;
+      if (rev.locality) return rev.locality;
+    }
+  } catch (_) {}
+
+  // 2. Try Nominatim reverse geocoding
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=id`;
+    const nomRes = await fetch(nomUrl, {
+      headers: { "User-Agent": "CoucouApp/0.6.26" },
+      signal: AbortSignal.timeout(3500),
+    });
+    if (nomRes.ok) {
+      const nom = await nomRes.json();
+      const addr = nom.address || {};
+      const cityName = addr.county || addr.city || addr.town || addr.municipality || addr.state_district;
+      if (cityName) {
+        return cityName.replace(/^(Kabupaten|Kota)\s+/i, "");
+      }
+    }
+  } catch (_) {}
+
+  return "Pasuruan";
+}
+
 async function resolveLocation(): Promise<{ lat: number; lon: number; city: string; isPrecise: boolean }> {
   // 1. Manual custom city if set by user
   const manual = getCustomCity();
@@ -76,25 +142,7 @@ async function resolveLocation(): Promise<{ lat: number; lon: number; city: stri
     if (coords && coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
       const lat = coords[0];
       const lon = coords[1];
-      let city = "Pasuruan";
-      try {
-        const revUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`;
-        const revRes = await fetch(revUrl, { signal: AbortSignal.timeout(4000) });
-        if (revRes.ok) {
-          const rev = await revRes.json();
-          if (rev.localityInfo?.administrative) {
-            const admin = rev.localityInfo.administrative as Array<{ adminLevel?: number; name?: string; description?: string }>;
-            const regency = admin.find((a) => a.adminLevel === 5 || (a.description && (a.description.includes("kabupaten") || a.description.includes("kota"))));
-            if (regency?.name) {
-              city = regency.name;
-            } else if (rev.city) {
-              city = rev.city;
-            }
-          } else if (rev.city) {
-            city = rev.city;
-          }
-        }
-      } catch (_) {}
+      const city = await reverseGeocode(lat, lon);
       return { lat, lon, city, isPrecise: true };
     }
   } catch (_) {}
@@ -106,21 +154,32 @@ async function resolveLocation(): Promise<{ lat: number; lon: number; city: stri
         navigator.geolocation.getCurrentPosition(
           (p) => resolve(p),
           () => resolve(null),
-          { timeout: 3000, enableHighAccuracy: true },
+          { timeout: 3500, enableHighAccuracy: true },
         );
       });
-      if (pos?.coords) {
-        return { lat: pos.coords.latitude, lon: pos.coords.longitude, city: "Lokal", isPrecise: true };
+      if (pos?.coords && !isNaN(pos.coords.latitude) && !isNaN(pos.coords.longitude)) {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const city = await reverseGeocode(lat, lon);
+        return { lat, lon, city, isPrecise: true };
       }
     } catch (_) {}
   }
 
   // 4. IP-based fallback (GeoJS)
-  const geoRes = await fetch("https://get.geojs.io/v1/ip/geo.json", { signal: AbortSignal.timeout(4000) });
-  if (!geoRes.ok) throw new Error("Geo fetch failed");
-  const geo = await geoRes.json();
-  const city = geo.city || geo.region || "Lokal";
-  return { lat: geo.latitude, lon: geo.longitude, city, isPrecise: false };
+  try {
+    const geoRes = await fetch("https://get.geojs.io/v1/ip/geo.json", { signal: AbortSignal.timeout(4000) });
+    if (geoRes.ok) {
+      const geo = await geoRes.json();
+      let city = geo.city || geo.region;
+      if (!city || city === "Lokal") {
+        city = "Pasuruan";
+      }
+      return { lat: geo.latitude, lon: geo.longitude, city, isPrecise: false };
+    }
+  } catch (_) {}
+
+  return { lat: -7.7785, lon: 112.7406, city: "Pasuruan", isPrecise: false };
 }
 
 export async function fetchLiveWeather(force = false): Promise<WeatherData | null> {
@@ -145,6 +204,7 @@ export async function fetchLiveWeather(force = false): Promise<WeatherData | nul
 
     cachedWeather = { city, temp, condition, humidity, icon, isPrecise };
     lastWeatherFetch = now;
+    saveCachedWeather(cachedWeather);
     return cachedWeather;
   } catch (_) {
     if (cachedWeather) return cachedWeather;
@@ -177,9 +237,23 @@ export function buildGlanceCard(): GlanceCardHost {
   root.append(slideContent);
 
   // Weather pre-fetch
-  void fetchLiveWeather().then(() => {
-    if (activeSlide === 1) updateWeatherUI();
-  });
+  let isFetchingWeather = false;
+  function triggerWeatherRefresh(force = false) {
+    if (isFetchingWeather) return;
+    const now = Date.now();
+    if (!force && cachedWeather && now - lastWeatherFetch < WEATHER_CACHE_MS) return;
+    isFetchingWeather = true;
+    fetchLiveWeather(force)
+      .then((w) => {
+        if (w) updateWeatherUI();
+      })
+      .finally(() => {
+        isFetchingWeather = false;
+      });
+  }
+
+  // Pre-fetch immediately on build
+  triggerWeatherRefresh();
 
   // Slide 1 elements: Two columns (Left: Time & Date, Right: Location & Weather)
   const timeRow = h("div", { class: "glance-time-row" });
@@ -197,7 +271,8 @@ export function buildGlanceCard(): GlanceCardHost {
 
   const pinIcon = svg(ICONS.pin, 12);
   pinIcon.classList.add("glance-pin-icon");
-  const locNameEl = h("span", { class: "glance-loc-name", text: "Memuat lokasi..." });
+  const initialCity = cachedWeather?.city || getCustomCity() || "Pasuruan";
+  const locNameEl = h("span", { class: "glance-loc-name", text: initialCity });
   const locRow = h(
     "div",
     {
@@ -211,9 +286,8 @@ export function buildGlanceCard(): GlanceCardHost {
         if (next !== null) {
           setCustomCity(next.trim() ? next.trim() : null);
           lastWeatherKey = "";
-          cachedWeather = null;
           updateWeatherUI();
-          void fetchLiveWeather(true).then(() => updateWeatherUI());
+          triggerWeatherRefresh(true);
         }
       },
     },
@@ -261,7 +335,7 @@ export function buildGlanceCard(): GlanceCardHost {
       const subText = h("span", { class: "glance-sub-text", text: `Kelembapan ${cachedWeather.humidity}%` });
       weatherSub.append(subText);
     } else {
-      locNameEl.textContent = getCustomCity() || "Mencari lokasi...";
+      locNameEl.textContent = getCustomCity() || "Pasuruan";
       const loadIcon = svg(ICONS.cloudSun, 16);
       loadIcon.classList.add("glance-weather-icon");
       const loadText = h("span", { class: "glance-cond", text: "Memuat cuaca..." });
@@ -408,11 +482,17 @@ export function buildGlanceCard(): GlanceCardHost {
     el: root,
     sync() {
       render();
+      if (!cachedWeather || Date.now() - lastWeatherFetch >= WEATHER_CACHE_MS) {
+        triggerWeatherRefresh();
+      }
     },
     tick(_nowMs: number): boolean {
       if (activeSlide !== 1) return false;
       const now = new Date();
       updateClockAndDate(now, false);
+      if (!cachedWeather || Date.now() - lastWeatherFetch >= WEATHER_CACHE_MS) {
+        triggerWeatherRefresh();
+      }
       return false;
     },
     setSlide(slide: 1 | 2) {

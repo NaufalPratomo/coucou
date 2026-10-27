@@ -461,10 +461,15 @@ test('19. Glance and Calendar expanded island dimensions and weather CSP', async
   assert.equal(getCustomCity(), 'Pasuruan');
   setCustomCity(null);
 
-  // CSP connect-src contains open-meteo, geojs, bigdatacloud
+  // CSP connect-src contains open-meteo, geojs, bigdatacloud, nominatim
   const csp = tauriConf.app.security.csp;
   assert.ok(csp.includes('https://get.geojs.io'), 'CSP allows geojs');
   assert.ok(csp.includes('https://api.open-meteo.com'), 'CSP allows open-meteo');
   assert.ok(csp.includes('https://api.bigdatacloud.net'), 'CSP allows bigdatacloud');
   assert.ok(csp.includes('https://geocoding-api.open-meteo.com'), 'CSP allows open-meteo geocoding');
+  assert.ok(csp.includes('https://nominatim.openstreetmap.org'), 'CSP allows nominatim');
+
+  // Verify glance.ts does not fall back to "Lokal"
+  const glanceCode = fs.readFileSync(new URL('../src/views/glance.ts', import.meta.url), 'utf8');
+  assert.ok(!glanceCode.includes('city: "Lokal"') && !glanceCode.includes('city = "Lokal"') && !glanceCode.includes('|| "Lokal"'), 'glance.ts does not assign or default to Lokal');
 });
