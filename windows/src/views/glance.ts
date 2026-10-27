@@ -198,7 +198,6 @@ export function buildGlanceCard(): GlanceCardHost {
   const pinIcon = svg(ICONS.pin, 12);
   pinIcon.classList.add("glance-pin-icon");
   const locNameEl = h("span", { class: "glance-loc-name", text: "Memuat lokasi..." });
-  const locBadgeEl = h("span", { class: "glance-loc-badge", text: "GPS" });
   const locRow = h(
     "div",
     {
@@ -220,7 +219,6 @@ export function buildGlanceCard(): GlanceCardHost {
     },
     pinIcon,
     locNameEl,
-    locBadgeEl,
   );
 
   const weatherMain = h("div", { class: "glance-weather-main" });
@@ -243,7 +241,7 @@ export function buildGlanceCard(): GlanceCardHost {
 
   function updateWeatherUI() {
     const key = cachedWeather
-      ? `${cachedWeather.city}:${cachedWeather.temp}:${cachedWeather.condition}:${cachedWeather.humidity}:${cachedWeather.isPrecise}`
+      ? `${cachedWeather.city}:${cachedWeather.temp}:${cachedWeather.condition}:${cachedWeather.humidity}`
       : "loading";
     if (key === lastWeatherKey) return;
     lastWeatherKey = key;
@@ -252,8 +250,6 @@ export function buildGlanceCard(): GlanceCardHost {
 
     if (cachedWeather) {
       locNameEl.textContent = cachedWeather.city;
-      locBadgeEl.textContent = getCustomCity() ? "Kustom" : (cachedWeather.isPrecise ? "Presisi" : "IP");
-      locBadgeEl.style.display = "";
 
       const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 18);
       wIcon.classList.add("glance-weather-icon");
@@ -266,7 +262,6 @@ export function buildGlanceCard(): GlanceCardHost {
       weatherSub.append(subText);
     } else {
       locNameEl.textContent = getCustomCity() || "Mencari lokasi...";
-      locBadgeEl.style.display = "none";
       const loadIcon = svg(ICONS.cloudSun, 16);
       loadIcon.classList.add("glance-weather-icon");
       const loadText = h("span", { class: "glance-cond", text: "Memuat cuaca..." });

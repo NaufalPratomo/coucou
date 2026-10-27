@@ -3418,17 +3418,6 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   color: #ffffff;
 }
 
-.glance-loc-badge {
-  font-size: 9px;
-  font-weight: 600;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-}
-
 .glance-weather-main {
   display: flex;
   align-items: center;
