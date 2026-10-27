@@ -17,6 +17,7 @@ mod integrations;
 mod island;
 mod local_chat;
 mod log;
+mod location;
 mod lyrics;
 mod net;
 mod notes;
@@ -884,6 +885,7 @@ pub fn run() {
             notes::notes_export,
             voice::voice_done,
             voice::voice_say_native,
+            location::get_device_coordinates,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

@@ -3323,57 +3323,37 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 }
 
 .slide-glance {
-  justify-content: center;
-  max-width: 520px;
-}
-
-.glance-weather-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 7px;
-  font: 500 12.5px var(--font);
-  color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 6px;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 536px;
+  gap: 18px;
+  box-sizing: border-box;
 }
 
-.weather-svg-icon {
-  color: #38bdf8;
-  flex-shrink: 0;
-}
-
-.weather-city {
-  font-weight: 600;
-  color: #ffffff;
-}
-
-.glance-dot {
-  color: var(--dim-3);
-  opacity: 0.7;
-}
-
-.weather-temp {
-  font-weight: 700;
-  color: #38bdf8;
-}
-
-.weather-cond {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11.5px;
+.glance-time-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 200px;
 }
 
 .glance-time-row {
   display: flex;
   align-items: baseline;
   line-height: 1;
-  margin: 4px 0;
+  margin: 0 0 6px 0;
 }
 
 .glance-clock {
-  font-size: 44px;
+  font-size: 46px;
   font-weight: 700;
   font-family: var(--font);
   color: #ffffff;
-  letter-spacing: -1px;
+  letter-spacing: -1.2px;
 }
 
 .glance-sec {
@@ -3384,13 +3364,110 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 }
 
 .glance-date-row {
-  margin-top: 4px;
+  margin: 0;
 }
 
 .glance-date {
   font-size: 13.5px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+}
+
+.glance-divider {
+  width: 1px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.glance-weather-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 auto;
+  gap: 3px;
+  min-width: 0;
+}
+
+.glance-loc-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  align-self: flex-start;
+  user-select: none;
+}
+
+.glance-loc-row:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.glance-pin-icon {
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.glance-loc-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.glance-loc-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.glance-weather-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 1px 0;
+}
+
+.glance-weather-icon {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.glance-temp {
+  font-size: 20px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.glance-dot {
+  color: var(--dim-3);
+  opacity: 0.7;
+}
+
+.glance-cond {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.glance-weather-sub {
+  margin-top: 1px;
+}
+
+.glance-sub-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dim-2);
 }
 
 /* ── Calendar Slide ──────────────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
+import { invoke } from "../core/bridge";
 
 export interface WeatherData {
   city: string;
@@ -8,11 +9,37 @@ export interface WeatherData {
   condition: string;
   humidity: number;
   icon: keyof typeof ICONS;
+  isPrecise: boolean;
 }
 
 let cachedWeather: WeatherData | null = null;
 let lastWeatherFetch = 0;
 const WEATHER_CACHE_MS = 20 * 60 * 1000; // 20 minutes
+
+const CUSTOM_CITY_KEY = "coucou_weather_city";
+let inMemoryCustomCity: string | null = null;
+
+export function getCustomCity(): string | null {
+  try {
+    if (typeof localStorage !== "undefined") {
+      return localStorage.getItem(CUSTOM_CITY_KEY) || inMemoryCustomCity;
+    }
+  } catch (_) {}
+  return inMemoryCustomCity;
+}
+
+export function setCustomCity(city: string | null) {
+  inMemoryCustomCity = city && city.trim() ? city.trim() : null;
+  try {
+    if (typeof localStorage !== "undefined") {
+      if (inMemoryCustomCity) {
+        localStorage.setItem(CUSTOM_CITY_KEY, inMemoryCustomCity);
+      } else {
+        localStorage.removeItem(CUSTOM_CITY_KEY);
+      }
+    }
+  } catch (_) {}
+}
 
 function weatherCodeToCondition(code: number): { condition: string; icon: keyof typeof ICONS } {
   if (code === 0) return { condition: "Cerah", icon: "sun" };
@@ -26,22 +53,86 @@ function weatherCodeToCondition(code: number): { condition: string; icon: keyof 
   return { condition: "Cerah Berawan", icon: "cloudSun" };
 }
 
-export async function fetchLiveWeather(): Promise<WeatherData | null> {
+async function resolveLocation(): Promise<{ lat: number; lon: number; city: string; isPrecise: boolean }> {
+  // 1. Manual custom city if set by user
+  const manual = getCustomCity();
+  if (manual) {
+    try {
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manual)}&count=1&language=id&format=json`;
+      const res = await fetch(geoUrl, { signal: AbortSignal.timeout(4000) });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.results && json.results.length > 0) {
+          const r = json.results[0];
+          return { lat: r.latitude, lon: r.longitude, city: r.name || manual, isPrecise: true };
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. High-precision Windows WinRT Wi-Fi / GPS Geolocation
+  try {
+    const coords = await invoke<[number, number] | null>("get_device_coordinates").catch(() => null);
+    if (coords && coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+      const lat = coords[0];
+      const lon = coords[1];
+      let city = "Pasuruan";
+      try {
+        const revUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`;
+        const revRes = await fetch(revUrl, { signal: AbortSignal.timeout(4000) });
+        if (revRes.ok) {
+          const rev = await revRes.json();
+          if (rev.localityInfo?.administrative) {
+            const admin = rev.localityInfo.administrative as Array<{ adminLevel?: number; name?: string; description?: string }>;
+            const regency = admin.find((a) => a.adminLevel === 5 || (a.description && (a.description.includes("kabupaten") || a.description.includes("kota"))));
+            if (regency?.name) {
+              city = regency.name;
+            } else if (rev.city) {
+              city = rev.city;
+            }
+          } else if (rev.city) {
+            city = rev.city;
+          }
+        }
+      } catch (_) {}
+      return { lat, lon, city, isPrecise: true };
+    }
+  } catch (_) {}
+
+  // 3. Browser navigator.geolocation fallback
+  if (typeof navigator !== "undefined" && navigator.geolocation) {
+    try {
+      const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve(p),
+          () => resolve(null),
+          { timeout: 3000, enableHighAccuracy: true },
+        );
+      });
+      if (pos?.coords) {
+        return { lat: pos.coords.latitude, lon: pos.coords.longitude, city: "Lokal", isPrecise: true };
+      }
+    } catch (_) {}
+  }
+
+  // 4. IP-based fallback (GeoJS)
+  const geoRes = await fetch("https://get.geojs.io/v1/ip/geo.json", { signal: AbortSignal.timeout(4000) });
+  if (!geoRes.ok) throw new Error("Geo fetch failed");
+  const geo = await geoRes.json();
+  const city = geo.city || geo.region || "Lokal";
+  return { lat: geo.latitude, lon: geo.longitude, city, isPrecise: false };
+}
+
+export async function fetchLiveWeather(force = false): Promise<WeatherData | null> {
   const now = Date.now();
-  if (cachedWeather && now - lastWeatherFetch < WEATHER_CACHE_MS) {
+  if (!force && cachedWeather && now - lastWeatherFetch < WEATHER_CACHE_MS) {
     return cachedWeather;
   }
 
   try {
-    // 1. Get user city and coordinates via free GeoJS IP API
-    const geoRes = await fetch("https://get.geojs.io/v1/ip/geo.json", { signal: AbortSignal.timeout(4000) });
-    if (!geoRes.ok) throw new Error("Geo fetch failed");
-    const geo = await geoRes.json();
-    const city = geo.city || geo.region || "Lokal";
-    const lat = geo.latitude;
-    const lon = geo.longitude;
+    const { lat, lon, city, isPrecise } = await resolveLocation();
 
-    // 2. Fetch live weather from Open-Meteo
+    // Fetch live weather from Open-Meteo
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code`;
     const weatherRes = await fetch(weatherUrl, { signal: AbortSignal.timeout(4000) });
     if (!weatherRes.ok) throw new Error("Weather fetch failed");
@@ -52,7 +143,7 @@ export async function fetchLiveWeather(): Promise<WeatherData | null> {
     const humidity = Math.round(current.relative_humidity_2m);
     const { condition, icon } = weatherCodeToCondition(current.weather_code);
 
-    cachedWeather = { city, temp, condition, humidity, icon };
+    cachedWeather = { city, temp, condition, humidity, icon, isPrecise };
     lastWeatherFetch = now;
     return cachedWeather;
   } catch (_) {
@@ -90,8 +181,7 @@ export function buildGlanceCard(): GlanceCardHost {
     if (activeSlide === 1) updateWeatherUI();
   });
 
-  // Slide 1 elements (built once, reused smoothly)
-  const weatherRow = h("div", { class: "glance-weather-row" });
+  // Slide 1 elements: Two columns (Left: Time & Date, Right: Location & Weather)
   const timeRow = h("div", { class: "glance-time-row" });
   const clockEl = h("span", { class: "glance-clock" });
   const secEl = h("span", { class: "glance-sec" });
@@ -101,7 +191,44 @@ export function buildGlanceCard(): GlanceCardHost {
   const dateEl = h("span", { class: "glance-date" });
   dateRow.append(dateEl);
 
-  const slide1Card = h("div", { class: "glance-slide slide-glance" }, weatherRow, timeRow, dateRow);
+  const timeCol = h("div", { class: "glance-time-col" }, timeRow, dateRow);
+
+  const divider = h("div", { class: "glance-divider" });
+
+  const pinIcon = svg(ICONS.pin, 12);
+  pinIcon.classList.add("glance-pin-icon");
+  const locNameEl = h("span", { class: "glance-loc-name", text: "Memuat lokasi..." });
+  const locBadgeEl = h("span", { class: "glance-loc-badge", text: "GPS" });
+  const locRow = h(
+    "div",
+    {
+      class: "glance-loc-row",
+      title: "Klik untuk ubah kota / lokasi",
+      onclick: () => {
+        const cur = getCustomCity() || "";
+        const next = typeof window !== "undefined" && window.prompt
+          ? window.prompt("Ubah kota cuaca (contoh: Pasuruan, Surabaya, Malang, atau kosongkan untuk GPS otomatis):", cur)
+          : null;
+        if (next !== null) {
+          setCustomCity(next.trim() ? next.trim() : null);
+          lastWeatherKey = "";
+          cachedWeather = null;
+          updateWeatherUI();
+          void fetchLiveWeather(true).then(() => updateWeatherUI());
+        }
+      },
+    },
+    pinIcon,
+    locNameEl,
+    locBadgeEl,
+  );
+
+  const weatherMain = h("div", { class: "glance-weather-main" });
+  const weatherSub = h("div", { class: "glance-weather-sub" });
+
+  const weatherCol = h("div", { class: "glance-weather-col" }, locRow, weatherMain, weatherSub);
+
+  const slide1Card = h("div", { class: "glance-slide slide-glance" }, timeCol, divider, weatherCol);
 
   let currentRenderedSlide: 1 | 2 | 0 = 0;
   let lastSecond = -1;
@@ -115,23 +242,35 @@ export function buildGlanceCard(): GlanceCardHost {
   ];
 
   function updateWeatherUI() {
-    const key = cachedWeather ? `${cachedWeather.city}:${cachedWeather.temp}:${cachedWeather.condition}` : "loading";
+    const key = cachedWeather
+      ? `${cachedWeather.city}:${cachedWeather.temp}:${cachedWeather.condition}:${cachedWeather.humidity}:${cachedWeather.isPrecise}`
+      : "loading";
     if (key === lastWeatherKey) return;
     lastWeatherKey = key;
-    clear(weatherRow);
+    clear(weatherMain);
+    clear(weatherSub);
+
     if (cachedWeather) {
-      const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 14);
-      wIcon.classList.add("weather-svg-icon");
-      const cityEl = h("span", { class: "weather-city", text: cachedWeather.city });
-      const dotEl1 = h("span", { class: "glance-dot", text: " · " });
-      const tempEl = h("span", { class: "weather-temp", text: `${cachedWeather.temp}°C` });
-      const dotEl2 = h("span", { class: "glance-dot", text: " · " });
-      const condEl = h("span", { class: "weather-cond", text: cachedWeather.condition });
-      weatherRow.append(wIcon, cityEl, dotEl1, tempEl, dotEl2, condEl);
+      locNameEl.textContent = cachedWeather.city;
+      locBadgeEl.textContent = getCustomCity() ? "Kustom" : (cachedWeather.isPrecise ? "Presisi" : "IP");
+      locBadgeEl.style.display = "";
+
+      const wIcon = svg(ICONS[cachedWeather.icon] || ICONS.cloudSun, 18);
+      wIcon.classList.add("glance-weather-icon");
+      const tempEl = h("span", { class: "glance-temp", text: `${cachedWeather.temp}°C` });
+      const dotEl = h("span", { class: "glance-dot", text: " · " });
+      const condEl = h("span", { class: "glance-cond", text: cachedWeather.condition });
+      weatherMain.append(wIcon, tempEl, dotEl, condEl);
+
+      const subText = h("span", { class: "glance-sub-text", text: `Kelembapan ${cachedWeather.humidity}%` });
+      weatherSub.append(subText);
     } else {
-      const loadIcon = svg(ICONS.cloudSun, 14);
-      loadIcon.classList.add("weather-svg-icon");
-      weatherRow.append(loadIcon, h("span", { class: "weather-city", text: "Memuat cuaca..." }));
+      locNameEl.textContent = getCustomCity() || "Mencari lokasi...";
+      locBadgeEl.style.display = "none";
+      const loadIcon = svg(ICONS.cloudSun, 16);
+      loadIcon.classList.add("glance-weather-icon");
+      const loadText = h("span", { class: "glance-cond", text: "Memuat cuaca..." });
+      weatherMain.append(loadIcon, loadText);
     }
   }
 
