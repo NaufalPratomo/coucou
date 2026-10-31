@@ -112,7 +112,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
   try {
     const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`;
     const nomRes = await fetch(nomUrl, {
-      headers: { "User-Agent": "CoucouApp/0.6.29" },
+      headers: { "User-Agent": "CoucouApp/0.6.30" },
       signal: AbortSignal.timeout(3500),
     });
     if (nomRes.ok) {

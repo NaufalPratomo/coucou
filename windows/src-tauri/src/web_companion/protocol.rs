@@ -150,12 +150,40 @@ pub struct SystemState {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct PcStats {
+    #[serde(rename = "cpuPercent")]
+    pub cpu_percent: f32,
+    #[serde(rename = "cpuTemp", skip_serializing_if = "Option::is_none")]
+    pub cpu_temp: Option<f32>,
+    #[serde(rename = "gpuPercent", skip_serializing_if = "Option::is_none")]
+    pub gpu_percent: Option<f32>,
+    #[serde(rename = "gpuTemp", skip_serializing_if = "Option::is_none")]
+    pub gpu_temp: Option<f32>,
+    #[serde(rename = "gpuName", skip_serializing_if = "Option::is_none")]
+    pub gpu_name: Option<String>,
+    #[serde(rename = "ramUsedGb")]
+    pub ram_used_gb: f32,
+    #[serde(rename = "ramTotalGb")]
+    pub ram_total_gb: f32,
+    #[serde(rename = "ramPercent")]
+    pub ram_percent: f32,
+    #[serde(rename = "batteryPercent")]
+    pub battery_percent: u8,
+    #[serde(rename = "isCharging")]
+    pub is_charging: bool,
+    #[serde(rename = "uptimeSecs")]
+    pub uptime_secs: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct StateSnapshot {
     pub media: Option<MediaState>,
     pub agent: Option<AgentState>,
     pub system: SystemState,
     #[serde(default)]
     pub sessions: Vec<SessionSummary>,
+    #[serde(rename = "pcStats", skip_serializing_if = "Option::is_none")]
+    pub pc_stats: Option<PcStats>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

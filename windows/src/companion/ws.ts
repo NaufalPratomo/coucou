@@ -75,6 +75,20 @@ export interface AgentState {
   diffSummary?: DiffSummaryFile[];
 }
 
+export interface PcStats {
+  cpuPercent: number;
+  cpuTemp?: number;
+  gpuPercent?: number;
+  gpuTemp?: number;
+  gpuName?: string;
+  ramUsedGb: number;
+  ramTotalGb: number;
+  ramPercent: number;
+  batteryPercent: number;
+  isCharging: boolean;
+  uptimeSecs: number;
+}
+
 export interface StateSnapshot {
   media?: MediaState;
   agent?: AgentState;
@@ -83,6 +97,7 @@ export interface StateSnapshot {
     isCharging: boolean;
   };
   sessions?: SessionSummary[];
+  pcStats?: PcStats;
 }
 
 export class CompanionClient {

@@ -12,6 +12,7 @@ test("companion.html and companion scripts contain zero unicode emojis", () => {
     "src/companion/components/KaraokeLyrics.ts",
     "src/companion/components/RemoteChat.ts",
     "src/companion/components/AntigravityCard.ts",
+    "src/companion/components/PcStatsCard.ts",
     "src/companion/components/MochiCanvas.ts",
   ];
 
@@ -81,6 +82,23 @@ test("companion.html has multi-session switcher, question card, and git diff vie
   assert.ok(html.includes('id="btn-diff-refresh"'), "must have diff refresh button");
 });
 
+test("companion.html has real-time PC Stats tab and metric cards", () => {
+  const html = readFileSync(resolve(process.cwd(), "companion.html"), "utf8");
+  assert.ok(html.includes('data-tab="stats"'), "must have PC Stats navigation button");
+  assert.ok(html.includes('id="tab-stats"'), "must have tab-stats pane");
+  assert.ok(html.includes('id="card-cpu"'), "must have CPU card");
+  assert.ok(html.includes('id="stats-cpu-pct"'), "must have CPU percentage element");
+  assert.ok(html.includes('id="stats-cpu-bar"'), "must have CPU meter bar");
+  assert.ok(html.includes('id="card-gpu"'), "must have GPU card");
+  assert.ok(html.includes('id="stats-gpu-pct"'), "must have GPU percentage element");
+  assert.ok(html.includes('id="stats-gpu-bar"'), "must have GPU meter bar");
+  assert.ok(html.includes('id="card-ram"'), "must have RAM card");
+  assert.ok(html.includes('id="stats-ram-used"'), "must have RAM used element");
+  assert.ok(html.includes('id="stats-ram-bar"'), "must have RAM meter bar");
+  assert.ok(html.includes('id="card-sys"'), "must have system/power card");
+  assert.ok(html.includes('id="stats-uptime"'), "must have uptime element");
+});
+
 test("companion style.css defines essential styles and zero emoji", () => {
   const css = readFileSync(resolve(process.cwd(), "src/companion/style.css"), "utf8");
   const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
@@ -92,11 +110,15 @@ test("companion style.css defines essential styles and zero emoji", () => {
   assert.ok(css.includes(".diff-line-add"), "must style diff addition lines");
   assert.ok(css.includes(".diff-line-del"), "must style diff deletion lines");
   assert.ok(css.includes(".diff-line-hunk"), "must style diff hunk lines");
+  assert.ok(css.includes(".stats-bar-fill"), "must style PC telemetry meter bar fill");
+  assert.ok(css.includes(".mode-pill"), "must style chat mode pills");
 });
 
-test("companion ws.ts exports answer, session selection, and diff request APIs", () => {
+test("companion ws.ts exports answer, session selection, diff request, and pcStats types", () => {
   const wsSource = readFileSync(resolve(process.cwd(), "src/companion/ws.ts"), "utf8");
   assert.ok(wsSource.includes("sendAnswer("), "ws.ts must have sendAnswer");
   assert.ok(wsSource.includes("selectSession("), "ws.ts must have selectSession");
   assert.ok(wsSource.includes("requestDiff("), "ws.ts must have requestDiff");
+  assert.ok(wsSource.includes("export interface PcStats"), "ws.ts must export PcStats");
+  assert.ok(wsSource.includes("pcStats?: PcStats;"), "StateSnapshot must contain pcStats");
 });

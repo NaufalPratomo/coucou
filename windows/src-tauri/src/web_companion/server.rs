@@ -957,11 +957,14 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
         }
     }
 
+    let pc_stats = Some(super::stats::get_pc_stats());
+
     StateSnapshot {
         media,
         agent,
         system,
         sessions: sessions_list,
+        pc_stats,
     }
 }
 

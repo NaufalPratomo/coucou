@@ -10,18 +10,21 @@ import { setupAntigravityCard } from "./components/AntigravityCard";
 import { MochiCanvas } from "./components/MochiCanvas";
 
 import { setupRemoteChat } from "./components/RemoteChat";
+import { setupPcStatsCard } from "./components/PcStatsCard";
 
 export let client: CompanionClient | null = null;
 export let player: ReturnType<typeof setupMusicPlayer> | null = null;
 export let agentCard: ReturnType<typeof setupAntigravityCard> | null = null;
 export let chatUi: ReturnType<typeof setupRemoteChat> | null = null;
+export let statsCard: ReturnType<typeof setupPcStatsCard> | null = null;
 export let mochi: MochiCanvas | null = null;
 
-export function switchTab(targetTab: "music" | "agent" | "chat"): void {
+export function switchTab(targetTab: "music" | "agent" | "chat" | "stats"): void {
   const tabButtons = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
   const tabMusic = document.getElementById("tab-music");
   const tabAgent = document.getElementById("tab-agent");
   const tabChat = document.getElementById("tab-chat");
+  const tabStats = document.getElementById("tab-stats");
 
   tabButtons.forEach((b) => {
     const tab = b.getAttribute("data-tab");
@@ -34,28 +37,23 @@ export function switchTab(targetTab: "music" | "agent" | "chat"): void {
     }
   });
 
-  if (targetTab === "music") {
-    tabMusic?.classList.remove("hidden");
-    tabMusic?.classList.add("active");
-    tabAgent?.classList.add("hidden");
-    tabAgent?.classList.remove("active");
-    tabChat?.classList.add("hidden");
-    tabChat?.classList.remove("active");
-  } else if (targetTab === "agent") {
-    tabAgent?.classList.remove("hidden");
-    tabAgent?.classList.add("active");
-    tabMusic?.classList.add("hidden");
-    tabMusic?.classList.remove("active");
-    tabChat?.classList.add("hidden");
-    tabChat?.classList.remove("active");
-  } else if (targetTab === "chat") {
-    tabChat?.classList.remove("hidden");
-    tabChat?.classList.add("active");
-    tabMusic?.classList.add("hidden");
-    tabMusic?.classList.remove("active");
-    tabAgent?.classList.add("hidden");
-    tabAgent?.classList.remove("active");
-  }
+  const panes: Record<string, HTMLElement | null> = {
+    music: tabMusic,
+    agent: tabAgent,
+    chat: tabChat,
+    stats: tabStats,
+  };
+
+  Object.entries(panes).forEach(([tabKey, pane]) => {
+    if (!pane) return;
+    if (tabKey === targetTab) {
+      pane.classList.remove("hidden");
+      pane.classList.add("active");
+    } else {
+      pane.classList.add("hidden");
+      pane.classList.remove("active");
+    }
+  });
 }
 
 export function setAgentAlert(alert: boolean): void {
@@ -79,7 +77,7 @@ export function setupTabs(): void {
 
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const targetTab = btn.getAttribute("data-tab") as "music" | "agent" | "chat" | null;
+      const targetTab = btn.getAttribute("data-tab") as "music" | "agent" | "chat" | "stats" | null;
       if (!targetTab) return;
 
       if ("vibrate" in navigator) {
@@ -193,6 +191,9 @@ export function initCompanionClient(): CompanionClient {
       if (player) {
         player.update(state.media);
       }
+      if (statsCard && state.pcStats) {
+        statsCard.update(state.pcStats);
+      }
       if (agentCard) {
         agentCard.renderSessions(state.sessions);
         if (state.agent) {
@@ -239,6 +240,7 @@ export function initCompanionClient(): CompanionClient {
   player = setupMusicPlayer(companion);
   agentCard = setupAntigravityCard(companion);
   chatUi = setupRemoteChat(companion);
+  statsCard = setupPcStatsCard(companion);
   companion.connect();
   return companion;
 }

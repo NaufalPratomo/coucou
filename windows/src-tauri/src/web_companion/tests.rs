@@ -83,11 +83,14 @@ fn test_serialize_outbound_messages() {
             active_goal: Some("Refactoring".into()),
             current_tool: Some("cargo".into()),
             pending_request: None,
+            diff_summary: Vec::new(),
         }),
         system: SystemState {
             battery_percent: 85,
             is_charging: true,
         },
+        sessions: Vec::new(),
+        pc_stats: None,
     });
     let snapshot_json = serde_json::to_string(&snapshot).expect("must serialize snapshot");
     assert!(snapshot_json.contains(r#""type":"sync:state""#));
@@ -516,3 +519,27 @@ deleted file mode 100644
 
 
 
+
+
+#[tokio::test]
+async fn test_pc_stats_serialization() {
+    let stats = super::protocol::PcStats {
+        cpu_percent: 18.5,
+        cpu_temp: Some(52.0),
+        gpu_percent: Some(4.0),
+        gpu_temp: Some(55.0),
+        gpu_name: Some("NVIDIA GeForce RTX 2050".into()),
+        ram_used_gb: 7.8,
+        ram_total_gb: 15.8,
+        ram_percent: 49.4,
+        battery_percent: 85,
+        is_charging: true,
+        uptime_secs: 4200,
+    };
+    let json = serde_json::to_string(&stats).expect("must serialize PcStats");
+    assert!(json.contains(r#""cpuPercent":18.5"#));
+    assert!(json.contains(r#""cpuTemp":52.0"#));
+    assert!(json.contains(r#""gpuName":"NVIDIA GeForce RTX 2050""#));
+    assert!(json.contains(r#""ramUsedGb":7.8"#));
+    assert!(json.contains(r#""uptimeSecs":4200"#));
+}
