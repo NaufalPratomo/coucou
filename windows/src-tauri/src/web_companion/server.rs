@@ -876,7 +876,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
     };
     let diff_summary = get_diff_summary(active_cwd.as_deref());
 
-    let agent = if hook_state.pending_request.is_some() || has_pipe_pending {
+    let mut agent = if hook_state.pending_request.is_some() || has_pipe_pending {
         Some(AgentState {
             agent: None,
             status: "Waiting for Confirmation".to_string(),
