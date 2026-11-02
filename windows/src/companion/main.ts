@@ -194,6 +194,28 @@ export function initCompanionClient(): CompanionClient {
       if (statsCard && state.pcStats) {
         statsCard.update(state.pcStats);
       }
+
+      // mDNS Recommendation Banner logic
+      const tipBanner = document.getElementById("mdns-tip-banner");
+      const switchBtn = document.getElementById("btn-switch-mdns") as HTMLAnchorElement | null;
+      const dismissBtn = document.getElementById("btn-dismiss-mdns");
+      if (tipBanner && switchBtn) {
+        const isRawIp = /^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname);
+        const dismissed = sessionStorage.getItem("coucou_mdns_tip_dismissed") === "true";
+        const targetHost = state.system?.hostname || "coucou.local";
+        if (isRawIp && !dismissed) {
+          switchBtn.href = `http://${targetHost}:47822${window.location.search}`;
+          tipBanner.classList.remove("hidden");
+        } else {
+          tipBanner.classList.add("hidden");
+        }
+        if (dismissBtn) {
+          dismissBtn.onclick = () => {
+            sessionStorage.setItem("coucou_mdns_tip_dismissed", "true");
+            tipBanner.classList.add("hidden");
+          };
+        }
+      }
       if (agentCard) {
         agentCard.renderSessions(state.sessions);
         if (state.agent) {

@@ -849,9 +849,13 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
     });
 
     let (battery_percent, is_charging) = get_system_battery();
+    let computer = crate::phone_link::pairing::computer_name();
+    let host_lbl = crate::phone_link::discovery::host_label(&computer);
+    let hostname = Some(format!("{}.local", host_lbl));
     let system = SystemState {
         battery_percent,
         is_charging,
+        hostname,
     };
 
     let now = (now_ms()) as u64;

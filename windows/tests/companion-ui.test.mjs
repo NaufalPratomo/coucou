@@ -133,3 +133,10 @@ test("companion ws.ts exports answer, session selection, diff request, and pcSta
   assert.ok(wsSource.includes("pcStats?: PcStats;"), "StateSnapshot must contain pcStats");
   assert.ok(wsSource.includes("ChatTargetMode"), "ws.ts must export ChatTargetMode");
 });
+
+test("companion.html has mDNS hostname recommendation banner", () => {
+  const html = readFileSync(resolve(process.cwd(), "companion.html"), "utf8");
+  assert.ok(html.includes('id="mdns-tip-banner"'), "must have mdns-tip-banner");
+  assert.ok(html.includes('id="btn-switch-mdns"'), "must have btn-switch-mdns");
+  assert.ok(html.includes('id="btn-dismiss-mdns"'), "must have btn-dismiss-mdns");
+});

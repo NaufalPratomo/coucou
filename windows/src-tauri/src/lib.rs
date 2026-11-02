@@ -706,13 +706,24 @@ fn open_settings_window(app: AppHandle, page: Option<String>) {
 #[tauri::command]
 fn get_companion_pairing() -> serde_json::Value {
     let token = web_companion::pairing::get_or_create_token();
-    let host = web_companion::pairing::lan_address()
+    let computer = phone_link::pairing::computer_name();
+    let host_lbl = phone_link::discovery::host_label(&computer);
+    let mdns_host = format!("{}.local", host_lbl);
+    let lan_ip = web_companion::pairing::lan_address()
         .map(|ip| ip.to_string())
-        .unwrap_or_else(|| "coucou.local".to_string());
-    let url = format!("http://{host}:47822?token={token}");
-    let qr = web_companion::pairing::generate_qr_svg_for_url(&url);
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+
+    let mdns_url = format!("http://{mdns_host}:47822?token={token}");
+    let lan_url = format!("http://{lan_ip}:47822?token={token}");
+    let primary_url = mdns_url.clone();
+    let qr = web_companion::pairing::generate_qr_svg_for_url(&primary_url);
+
     serde_json::json!({
-        "url": url,
+        "url": primary_url,
+        "mdnsUrl": mdns_url,
+        "lanUrl": lan_url,
+        "hostname": mdns_host,
+        "lanIp": lan_ip,
         "token": token,
         "qr": qr
     })

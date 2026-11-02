@@ -98,6 +98,7 @@ export interface StateSnapshot {
   system: {
     batteryPercent: number;
     isCharging: boolean;
+    hostname?: string;
   };
   sessions?: SessionSummary[];
   pcStats?: PcStats;

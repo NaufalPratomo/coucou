@@ -83,6 +83,10 @@ export interface CompanionPairing {
   url: string;
   token: string;
   qr: string;
+  mdnsUrl?: string;
+  lanUrl?: string;
+  hostname?: string;
+  lanIp?: string;
 }
 
 /** Native BLE phone battery and connection state. */

@@ -151,6 +151,8 @@ pub struct SystemState {
     pub battery_percent: u8,
     #[serde(rename = "isCharging")]
     pub is_charging: bool,
+    #[serde(default, rename = "hostname")]
+    pub hostname: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]

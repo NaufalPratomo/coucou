@@ -306,7 +306,7 @@ export function buildMessagesCard(kind: "laptop" | "phone" = "phone"): { el: HTM
       const modalTitle = h("div", { class: "nofff-qr-title", text: "Pair iPhone Companion" });
       const modalSub = h("div", {
         class: "nofff-qr-sub",
-        text: "Scan with iPhone Camera to open Web Companion (PWA on :47822)",
+        text: `Scan to open Web Companion (${pairingData?.hostname ?? "coucou.local"}:47822 - works across any Wi-Fi)`,
       });
 
       const qrBox = h("div", { class: "nofff-qr-box" });

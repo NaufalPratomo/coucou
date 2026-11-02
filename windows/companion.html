@@ -36,6 +36,24 @@
       </div>
     </header>
 
+    <!-- mDNS Hostname Recommendation Banner (when opened via raw IP) -->
+    <div id="mdns-tip-banner" class="hidden my-2 p-2.5 bg-neutral-950 rounded-2xl border border-emerald-500/30 shadow-lg flex items-center justify-between text-xs space-x-2 shrink-0">
+      <div class="flex items-center space-x-2 min-w-0">
+        <svg class="w-4 h-4 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <span class="text-neutral-300 truncate">Use permanent hostname to keep PWA working across any Wi-Fi:</span>
+      </div>
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <a id="btn-switch-mdns" href="#" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-semibold hover:bg-emerald-500/30 transition-colors">Switch</a>
+        <button id="btn-dismiss-mdns" type="button" class="p-1 text-neutral-500 hover:text-white" aria-label="Dismiss">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Tab Navigation (4 Tabs: Music, Agents, Remote Chat, PC Stats) -->
     <nav id="tab-nav" class="flex items-center justify-around my-2 border-b border-neutral-900 pb-2 shrink-0 text-xs sm:text-sm">
       <button data-tab="music" class="tab-btn active font-semibold text-white px-2.5 sm:px-3 py-1.5">Music</button>

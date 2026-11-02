@@ -166,7 +166,7 @@ function iphoneCompanionBlock(): HTMLElement {
         h("div", { class: "row", style: "margin-top: 8px; gap: 8px;" }, link, copyBtn),
         copyHint,
         h("div", { class: "hint", text: "On iOS Safari, tap Share → 'Add to Home Screen' to install as a standalone PWA with OLED pitch black display." }),
-        h("div", { class: "hint", text: "Make sure your iPhone and computer are on the same Wi-Fi network (coucou.local:47822)." }),
+        h("div", { class: "hint", text: `Make sure your device and computer are on the same Wi-Fi network (${pairing.hostname || "coucou.local"}:47822). Works across any Wi-Fi without rescanning.` }),
       );
     } catch (err) {
       qrBox.replaceChildren(h("div", { class: "hint", text: String(err) }));

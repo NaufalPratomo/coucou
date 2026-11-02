@@ -40,7 +40,10 @@ pub fn generate_qr_svg_for_url(url: &str) -> String {
 
 pub fn generate_qr_svg() -> String {
     let token = get_or_create_token();
-    let url = format!("http://coucou.local:47822?token={token}");
+    let computer = crate::phone_link::pairing::computer_name();
+    let host_lbl = crate::phone_link::discovery::host_label(&computer);
+    let mdns_host = format!("{}.local", host_lbl);
+    let url = format!("http://{mdns_host}:47822?token={token}");
     generate_qr_svg_for_url(&url)
 }
 
