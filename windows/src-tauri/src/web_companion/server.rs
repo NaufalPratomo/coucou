@@ -878,6 +878,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
 
     let agent = if hook_state.pending_request.is_some() || has_pipe_pending {
         Some(AgentState {
+            agent: None,
             status: "Waiting for Confirmation".to_string(),
             active_goal: selected_goal.or_else(|| hook_state.active_goal.clone()),
             current_tool: selected_tool.or_else(|| hook_state.current_tool.clone()),
@@ -898,6 +899,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
             st.clone()
         };
         Some(AgentState {
+            agent: None,
             status: status_str,
             active_goal: selected_goal.or_else(|| hook_state.active_goal.clone()),
             current_tool: selected_tool.or_else(|| hook_state.current_tool.clone()).or_else(|| Some("Standing by".to_string())),
@@ -906,6 +908,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
         })
     } else if hook_state.status != "idle" && now.saturating_sub(hook_state.last_event_time) < 120_000 {
         Some(AgentState {
+            agent: None,
             status: if hook_state.status == "thinking" { "Thinking".to_string() } else { "Running".to_string() },
             active_goal: hook_state.active_goal.clone(),
             current_tool: hook_state.current_tool.clone(),
@@ -914,6 +917,7 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
         })
     } else {
         Some(AgentState {
+            agent: None,
             status: "Idle".to_string(),
             active_goal: hook_state.active_goal.clone(),
             current_tool: hook_state.current_tool.clone().or_else(|| Some("Standing by".to_string())),
