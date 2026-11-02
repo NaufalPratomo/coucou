@@ -68,6 +68,7 @@ export interface SessionSummary {
 }
 
 export interface AgentState {
+  agent?: string;
   status: string;
   activeGoal?: string;
   currentTool?: string;
@@ -88,6 +89,8 @@ export interface PcStats {
   isCharging: boolean;
   uptimeSecs: number;
 }
+
+export type ChatTargetMode = "antigravity" | "claude" | "clipboard" | "ai" | "clip";
 
 export interface StateSnapshot {
   media?: MediaState;
@@ -276,9 +279,10 @@ export class CompanionClient {
     }
   }
 
-  public sendChatMessage(text: string, mode: "ai" | "clip" = "ai"): void {
+  public sendChatMessage(text: string, mode: ChatTargetMode = "antigravity", agent?: string): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: "chat:send", payload: { text, mode } }));
+      const targetAgent = agent || (mode === "claude" ? "Claude" : (mode === "antigravity" || mode === "ai" ? "Antigravity" : undefined));
+      this.ws.send(JSON.stringify({ type: "chat:send", payload: { text, mode, agent: targetAgent } }));
     }
   }
 }

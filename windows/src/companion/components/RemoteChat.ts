@@ -1,14 +1,16 @@
-import type { CompanionClient } from "../ws";
+import type { CompanionClient, ChatTargetMode } from "../ws";
 
 export function setupRemoteChat(client: CompanionClient) {
   const form = document.getElementById("chat-form") as HTMLFormElement | null;
   const input = document.getElementById("chat-input") as HTMLInputElement | null;
   const messagesContainer = document.getElementById("chat-messages");
-  const btnModeAi = document.getElementById("btn-mode-ai");
+  const btnModeAntigravity = document.getElementById("btn-mode-antigravity") || document.getElementById("btn-mode-ai");
+  const btnModeClaude = document.getElementById("btn-mode-claude");
   const btnModeClip = document.getElementById("btn-mode-clip");
   const toast = document.getElementById("chat-status-toast");
 
-  let mode: "ai" | "clip" = "ai";
+  type ChatMode = "antigravity" | "claude" | "clipboard";
+  let mode: ChatMode = "antigravity";
 
   const triggerHaptic = (ms: number) => {
     try {
@@ -18,26 +20,49 @@ export function setupRemoteChat(client: CompanionClient) {
     } catch (_) {}
   };
 
-  const updateMode = (newMode: "ai" | "clip") => {
+  const resetPill = (btn: HTMLElement | null) => {
+    if (!btn) return;
+    btn.classList.remove(
+      "active",
+      "border-emerald-500/50",
+      "bg-emerald-500/15",
+      "text-emerald-400",
+      "border-amber-500/50",
+      "bg-amber-500/15",
+      "text-amber-400",
+      "border-neutral-600",
+      "bg-neutral-800",
+      "text-white"
+    );
+    btn.classList.add("border-neutral-800", "bg-neutral-900", "text-neutral-400");
+  };
+
+  const updateMode = (newMode: ChatMode) => {
     mode = newMode;
     triggerHaptic(10);
-    if (mode === "ai") {
-      btnModeAi?.classList.add("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
-      btnModeAi?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
-      btnModeClip?.classList.remove("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
-      btnModeClip?.classList.add("border-neutral-800", "bg-neutral-900", "text-neutral-400");
+
+    resetPill(btnModeAntigravity);
+    resetPill(btnModeClaude);
+    resetPill(btnModeClip);
+
+    if (mode === "antigravity") {
+      btnModeAntigravity?.classList.add("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
+      btnModeAntigravity?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
       if (input) input.placeholder = "Prompt Antigravity on laptop...";
+    } else if (mode === "claude") {
+      btnModeClaude?.classList.add("active", "border-amber-500/50", "bg-amber-500/15", "text-amber-400");
+      btnModeClaude?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
+      if (input) input.placeholder = "Prompt Claude Code on laptop...";
     } else {
-      btnModeClip?.classList.add("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
+      btnModeClip?.classList.add("active", "border-neutral-600", "bg-neutral-800", "text-white");
       btnModeClip?.classList.remove("border-neutral-800", "bg-neutral-900", "text-neutral-400");
-      btnModeAi?.classList.remove("active", "border-emerald-500/50", "bg-emerald-500/15", "text-emerald-400");
-      btnModeAi?.classList.add("border-neutral-800", "bg-neutral-900", "text-neutral-400");
       if (input) input.placeholder = "Type text to copy to PC clipboard...";
     }
   };
 
-  btnModeAi?.addEventListener("click", () => updateMode("ai"));
-  btnModeClip?.addEventListener("click", () => updateMode("clip"));
+  btnModeAntigravity?.addEventListener("click", () => updateMode("antigravity"));
+  btnModeClaude?.addEventListener("click", () => updateMode("claude"));
+  btnModeClip?.addEventListener("click", () => updateMode("clipboard"));
 
   const showToast = (msg: string) => {
     if (!toast) return;
@@ -62,9 +87,11 @@ export function setupRemoteChat(client: CompanionClient) {
         </div>
       `;
     } else {
+      const isClaude = text.toLowerCase().includes("claude");
+      const iconColor = isClaude ? "text-amber-400" : "text-emerald-400";
       bubble.innerHTML = `
         <div class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0 shadow">
-          <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-4 h-4 ${iconColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2v2"/><rect x="4" y="4" width="16" height="14" rx="3"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M9 15h6"/>
           </svg>
         </div>
@@ -88,8 +115,16 @@ export function setupRemoteChat(client: CompanionClient) {
 
     if (input) input.value = "";
     triggerHaptic(15);
-    client.sendChatMessage(text, mode);
-    showToast(mode === "clip" ? "Copied to PC!" : "Sent to Antigravity!");
+    const targetAgent = mode === "claude" ? "Claude" : (mode === "antigravity" ? "Antigravity" : undefined);
+    client.sendChatMessage(text, mode as ChatTargetMode, targetAgent);
+
+    if (mode === "claude") {
+      showToast("Dispatched to Claude Code!");
+    } else if (mode === "clipboard") {
+      showToast("Copied to PC!");
+    } else {
+      showToast("Dispatched to Antigravity!");
+    }
   };
 
   form?.addEventListener("submit", (e) => {

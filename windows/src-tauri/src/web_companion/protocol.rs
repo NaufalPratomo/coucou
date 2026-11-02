@@ -35,6 +35,8 @@ pub enum InboundMessage {
         text: String,
         #[serde(default)]
         mode: Option<String>,
+        #[serde(default)]
+        agent: Option<String>,
     },
     #[serde(rename = "ping")]
     Ping,
@@ -130,6 +132,8 @@ pub struct SessionSummary {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct AgentState {
+    #[serde(default)]
+    pub agent: Option<String>,
     pub status: String,
     #[serde(rename = "activeGoal")]
     pub active_goal: Option<String>,

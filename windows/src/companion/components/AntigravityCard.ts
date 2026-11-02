@@ -18,6 +18,7 @@ export function setupAntigravityCard(client: CompanionClient) {
   const pulseDot = document.getElementById("agent-pulse-dot");
   const activityText = document.getElementById("agent-activity-text");
   const activityBadge = document.getElementById("agent-activity-badge");
+  const agentTypeBadge = document.getElementById("agent-type-badge");
 
   // Standard Approval Elements
   const approvalCard = document.getElementById("approval-card")!;
@@ -189,8 +190,10 @@ export function setupAntigravityCard(client: CompanionClient) {
       sessionPillsRow.innerHTML = "";
 
       for (const s of items) {
+        const isClaude = (s.agent || "").toLowerCase().includes("claude");
+        const agentClass = isClaude ? "claude" : "antigravity";
         const pill = document.createElement("button");
-        pill.className = `session-pill ${s.isActive ? "active" : ""}`;
+        pill.className = `session-pill ${agentClass} ${s.isActive ? "active" : ""}`;
         pill.setAttribute("data-session-id", s.id);
 
         const dot = document.createElement("span");
@@ -200,7 +203,7 @@ export function setupAntigravityCard(client: CompanionClient) {
         } else if (stLower.includes("waiting") || stLower.includes("confirmation")) {
           dot.className = "w-2 h-2 rounded-full bg-rose-400 animate-pulse";
         } else {
-          dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+          dot.className = `w-2 h-2 rounded-full ${isClaude ? "bg-amber-400" : "bg-emerald-400"}`;
         }
 
         const label = document.createElement("span");
@@ -225,6 +228,17 @@ export function setupAntigravityCard(client: CompanionClient) {
     update(agent?: AgentState) {
       if (!agent) return;
       const statusLower = (agent.status || "").toLowerCase();
+      const agentName = agent.agent || "Antigravity";
+      const isClaude = agentName.toLowerCase().includes("claude");
+
+      if (agentTypeBadge) {
+        agentTypeBadge.textContent = agentName;
+        if (isClaude) {
+          agentTypeBadge.className = "text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-semibold tracking-wider";
+        } else {
+          agentTypeBadge.className = "text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold tracking-wider";
+        }
+      }
 
       if (statusLower === "running" || statusLower === "thinking") {
         statusLabel.textContent = statusLower === "thinking" ? "Thinking" : "Running";
@@ -248,9 +262,9 @@ export function setupAntigravityCard(client: CompanionClient) {
         }
       } else {
         statusLabel.textContent = "Idle";
-        statusLabel.className = "text-xl font-bold text-emerald-400 mt-1 capitalize";
+        statusLabel.className = `text-xl font-bold ${isClaude ? "text-amber-400" : "text-emerald-400"} mt-1 capitalize`;
         if (pulseDot) {
-          pulseDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+          pulseDot.className = `w-2.5 h-2.5 rounded-full ${isClaude ? "bg-amber-400" : "bg-emerald-400"}`;
         }
         if (activityBadge) {
           activityBadge.textContent = "Idle";

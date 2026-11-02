@@ -957,6 +957,11 @@ pub async fn build_snapshot(app: &AppHandle) -> StateSnapshot {
         }
     }
 
+    let active_agent_name = sessions_list.iter().find(|s| s.is_active).map(|s| s.agent.clone()).or_else(|| Some("Antigravity".to_string()));
+    if let Some(ref mut ag) = agent {
+        ag.agent = active_agent_name;
+    }
+
     let pc_stats = Some(super::stats::get_pc_stats());
 
     StateSnapshot {
@@ -1058,11 +1063,15 @@ pub async fn handle_ws_session(
                             let _ = out_tx_dec.send(OutboundMessage::FullSync(snap)).await;
                         });
                     }
-                    InboundMessage::ChatSend { text, mode } => {
+                    InboundMessage::ChatSend { text, mode, agent } => {
                         let text_trim = text.trim().to_string();
                         if text_trim.is_empty() {
                             continue;
                         }
+
+                        let mode_str = mode.unwrap_or_else(|| "antigravity".to_string());
+                        let is_claude = mode_str == "claude" || agent.as_deref().map(|a| a.to_lowercase().contains("claude")).unwrap_or(false);
+                        let is_clip = mode_str == "clip" || mode_str == "clipboard";
 
                         // 1. Copy to laptop clipboard
                         if let Ok(mut clipboard) = arboard::Clipboard::new() {
@@ -1073,29 +1082,49 @@ pub async fn handle_ws_session(
                         use tauri::Emitter;
                         let _ = app.emit_to(crate::island::WINDOW_LABEL, "remote-chat", text_trim.clone());
 
-                        // 3. Bring the active Antigravity session window / terminal to the front
-                        let session_opt = LAST_ACTIVE_SESSION.lock().unwrap().clone();
-                        if let Some(session_id) = session_opt {
-                            #[cfg(windows)]
-                            {
-                                if let Some(owners) = crate::session_window::lookup(&session_id) {
-                                    let _ = crate::platform::focus_session_window(&owners, "");
+                        // 3. Bring targeted agent session window / terminal to the front (unless clipboard-only)
+                        if !is_clip {
+                            let target_sid = {
+                                let sessions = SESSIONS.lock().unwrap();
+                                let mut found = None;
+                                for (sid, s) in sessions.iter() {
+                                    let s_agent = s.agent.to_lowercase();
+                                    if is_claude && s_agent.contains("claude") {
+                                        found = Some(sid.clone());
+                                        break;
+                                    } else if !is_claude && s_agent.contains("antigravity") {
+                                        found = Some(sid.clone());
+                                        break;
+                                    }
+                                }
+                                found.or_else(|| LAST_ACTIVE_SESSION.lock().unwrap().clone())
+                            };
+
+                            if let Some(session_id) = target_sid {
+                                #[cfg(windows)]
+                                {
+                                    if let Some(owners) = crate::session_window::lookup(&session_id) {
+                                        let _ = crate::platform::focus_session_window(&owners, "");
+                                    }
                                 }
                             }
-                        }
 
-                        // 4. Update the active goal immediately
-                        {
-                            let mut state = HOOK_AGENT_STATE.lock().unwrap();
-                            state.active_goal = Some(text_trim.clone());
-                            state.status = "running".to_string();
-                            state.current_tool = Some("Dispatched to Antigravity".to_string());
-                            state.last_event_time = (now_ms()) as u64;
+                            // 4. Update the active goal immediately
+                            {
+                                let mut state = HOOK_AGENT_STATE.lock().unwrap();
+                                state.active_goal = Some(text_trim.clone());
+                                state.status = "running".to_string();
+                                state.current_tool = Some(if is_claude {
+                                    "Dispatched to Claude Code".to_string()
+                                } else {
+                                    "Dispatched to Antigravity".to_string()
+                                });
+                                state.last_event_time = (now_ms()) as u64;
+                            }
                         }
 
                         let app_clone = app.clone();
                         let out_tx_chat = out_tx.clone();
-                        let mode_str = mode.unwrap_or_else(|| "ai".to_string());
 
                         tauri::async_runtime::spawn(async move {
                             let _ = out_tx_chat.send(OutboundMessage::ChatReply {
@@ -1103,8 +1132,10 @@ pub async fn handle_ws_session(
                                 is_user: true,
                             }).await;
 
-                            let ack_reply = if mode_str == "clip" {
+                            let ack_reply = if is_clip {
                                 "Copied to PC clipboard! Ready to paste (Ctrl+V) on laptop.".to_string()
+                            } else if is_claude {
+                                "Prompt dispatched to Claude Code & copied to clipboard! Terminal focused.".to_string()
                             } else {
                                 "Prompt dispatched to Antigravity & copied to clipboard! Terminal focused.".to_string()
                             };

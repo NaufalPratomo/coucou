@@ -49,15 +49,22 @@ test("companion.html has track seek scrubber and volume slider", () => {
   assert.ok(html.includes('id="volume-icon"'), "must have vector speaker volume icon");
 });
 
-test("companion.html has spacious remote chat layout and mode pills", () => {
+test("companion.html has spacious remote chat layout and mode pills for Antigravity, Claude Code, and Clipboard", () => {
   const html = readFileSync(resolve(process.cwd(), "companion.html"), "utf8");
   assert.ok(html.includes('id="tab-chat"'), "must have remote chat tab");
   assert.ok(html.includes('id="chat-messages"'), "must have message thread container");
   assert.ok(html.includes('chat-input-bar'), "must have chat input bar with safe area padding");
   assert.ok(html.includes('id="chat-input"'), "must have chat text input");
   assert.ok(html.includes('id="btn-chat-send"'), "must have send button");
-  assert.ok(html.includes('id="btn-mode-ai"'), "must have Ask AI mode button");
+  assert.ok(html.includes('id="btn-mode-antigravity"'), "must have Antigravity mode button");
+  assert.ok(html.includes('id="btn-mode-claude"'), "must have Claude Code mode button");
   assert.ok(html.includes('id="btn-mode-clip"'), "must have Copy to PC mode button");
+});
+
+test("companion.html has unified Agents tab and agent type badge", () => {
+  const html = readFileSync(resolve(process.cwd(), "companion.html"), "utf8");
+  assert.ok(html.includes('>Agents</button>'), "tab button must be labeled Agents");
+  assert.ok(html.includes('id="agent-type-badge"'), "must have agent-type-badge in status card");
 });
 
 test("companion.html has multi-session switcher, question card, and git diff viewer", () => {
@@ -112,6 +119,9 @@ test("companion style.css defines essential styles and zero emoji", () => {
   assert.ok(css.includes(".diff-line-hunk"), "must style diff hunk lines");
   assert.ok(css.includes(".stats-bar-fill"), "must style PC telemetry meter bar fill");
   assert.ok(css.includes(".mode-pill"), "must style chat mode pills");
+  assert.ok(css.includes(".mode-pill.antigravity"), "must style antigravity mode pill");
+  assert.ok(css.includes(".mode-pill.claude"), "must style claude mode pill");
+  assert.ok(css.includes(".session-pill.claude"), "must style claude session pill");
 });
 
 test("companion ws.ts exports answer, session selection, diff request, and pcStats types", () => {
@@ -121,4 +131,5 @@ test("companion ws.ts exports answer, session selection, diff request, and pcSta
   assert.ok(wsSource.includes("requestDiff("), "ws.ts must have requestDiff");
   assert.ok(wsSource.includes("export interface PcStats"), "ws.ts must export PcStats");
   assert.ok(wsSource.includes("pcStats?: PcStats;"), "StateSnapshot must contain pcStats");
+  assert.ok(wsSource.includes("ChatTargetMode"), "ws.ts must export ChatTargetMode");
 });
