@@ -17,11 +17,11 @@
 mod admission;
 mod chat;
 mod chat_backend;
-mod discovery;
+pub(crate) mod discovery;
 mod hub;
 #[cfg(test)]
 mod interop;
-mod pairing;
+pub(crate) mod pairing;
 mod relay_client;
 mod relay_crypto;
 mod server;
@@ -35,7 +35,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 use crate::{island, log, pipe, recap, secrets, settings, Shared};
+pub use discovery::host_label;
 pub use hub::{ApprovalIn, Host, Hub, SessionIn};
+pub use pairing::computer_name;
 use pairing::SecretStore;
 
 /// The port the pairing link offers; another is taken if it is busy.
