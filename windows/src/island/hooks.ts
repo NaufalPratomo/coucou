@@ -317,6 +317,7 @@ function handleHook(island: Island, payload: HookPayload) {
     case "SessionStart":
       ensurePill();
       clearFinalLine(agentId);
+      State.setFocus(agentId);
       // Hermes through its gateway says where the session comes from.
       if (validAgent === "hermes" && payload.platform && payload.platform !== "cli") {
         State.appendStep(agentId, payload.platform.charAt(0).toUpperCase() + payload.platform.slice(1));
@@ -330,6 +331,7 @@ function handleHook(island: Island, payload: HookPayload) {
       supersedeStop();
       clearFinalLine(agentId);
       State.updateTask(agentId, "thinking");
+      State.setFocus(agentId);
       // The field is `prompt`; reading `message` meant this step was always blank.
       const asked = payload.prompt ?? payload.message;
       if (asked) State.appendStep(agentId, asked.slice(0, 60));
@@ -342,6 +344,7 @@ function handleHook(island: Island, payload: HookPayload) {
       supersedeStop();
       clearFinalLine(agentId);
       State.updateTask(agentId, "working");
+      State.setFocus(agentId);
       const tool = payload.tool_name ?? "Tool";
       State.appendStep(agentId, stepLabel(tool, payload.tool_input ?? {}));
       surface("overview", false);

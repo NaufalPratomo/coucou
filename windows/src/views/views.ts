@@ -186,11 +186,15 @@ export function buildHeader(actions: ViewActions): ViewHost {
         ? (isPhone ? "agent-tab active nofff-tab" : (isMsg ? "agent-tab active msg-tab" : "agent-tab active"))
         : (isPhone ? "agent-tab nofff-tab" : (isMsg ? "agent-tab msg-tab" : "agent-tab"));
 
+      const isCodingAgent = task.id === "agent_antigravity" || task.id === "integration_claude";
+      const isIdle = task.state === "idle" && task.steps.length === 0;
+      const tabTitle = isCodingAgent && isIdle ? t("Agents") : task.name;
+
       const tab = h(
         "button",
         {
           class: tabClass,
-          title: task.name,
+          title: tabTitle,
           onclick: () => {
             actions.blip();
             actions.setFocus(task.id);
@@ -212,7 +216,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
         tab.style.borderColor = `${task.color}55`;
         tab.style.background = `${task.color}24`;
         tab.style.boxShadow = `0 0 8px ${task.color}33`;
-        const nameEl = h("span", { class: "agent-tab-name", text: task.name });
+        const nameEl = h("span", { class: "agent-tab-name", text: tabTitle });
         nameEl.style.color = lighten(task.color, 0.3);
         tab.append(nameEl);
 
